@@ -23,4 +23,4 @@ Ordinary checklists imported from Markdown stay inside their note. They appear i
 
 Due dates export as a calendar sign followed by a date, such as `📅 2027-01-15`. Linked tasks also carry a private Markdown marker so their source survives export.
 
-These are disposable examples. You can delete them from Tasks and write your own.
+These are examples. You can delete them from Tasks and write your own.

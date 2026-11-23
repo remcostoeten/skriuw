@@ -12,12 +12,13 @@ import { socialImage } from "@/data/seo";
 export const metadata: Metadata = {
   title: "Architecture decision records: why Skriuw is built the way it is",
   description:
-    "Every architecture decision behind Skriuw, from SQLite as canonical storage to end-to-end encrypted sync, with the context, the decision and its consequences.",
+    "The architecture decision records for Skriuw, from SQLite as canonical storage to optional cloud sync. Each record has the context, the decision and its consequences.",
   alternates: { canonical: "/docs/adr/" },
   openGraph: {
     siteName: "Skriuw",
     title: "Architecture decision records | Skriuw",
-    description: "The context, decision and consequences behind each part of Skriuw, newest first.",
+    description:
+      "The context, decision and consequences of each Skriuw architecture decision, newest first.",
     url: "https://skriuw.com/docs/adr/",
     images: [socialImage],
   },
@@ -35,11 +36,11 @@ export default async function AdrIndexPage() {
         eyebrow="Architecture decision records"
         title={
           <>
-            Every decision that shaped the app,
-            <span className="text-ink-500"> with the reasoning kept next to it.</span>
+            Architecture decisions,
+            <span className="text-ink-500"> with the reasoning behind each.</span>
           </>
         }
-        lede="Each record states the situation, the decision taken, and what it costs. Superseded records stay published and point at their replacement."
+        lede="Each record states the context, the decision and its consequences. Superseded records stay published and show their status."
         actions={[
           { label: "All documentation", href: "/docs/" },
           { label: "Browse docs/adr", href: `${repoUrl}/tree/daddy/docs/adr` },
@@ -80,8 +81,8 @@ export default async function AdrIndexPage() {
       </section>
 
       <PageCta
-        title="The decisions are public. So is the app."
-        body="Open the browser build and see what these records add up to. Nothing to install, no account."
+        title="Try the app these decisions describe."
+        body="The browser build needs no install and no account."
         actions={[
           { label: "Architecture", href: "/docs/architecture/" },
           { label: "Download", href: "/download/" },

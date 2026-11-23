@@ -134,7 +134,7 @@ export function createNativeBridge(
     if (version !== WORKSPACE_PROTOCOL_VERSION) {
       throw new SkriuwCoreError({
         kind: "unsupported-protocol",
-        message: `The native core speaks workspace protocol ${version}; this build expects ${WORKSPACE_PROTOCOL_VERSION}. Update Skriuw.`,
+        message: `The native core uses workspace protocol ${version}, and this build expects ${WORKSPACE_PROTOCOL_VERSION}. Update Skriuw.`,
         version,
       });
     }

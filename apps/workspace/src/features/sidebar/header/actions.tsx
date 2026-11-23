@@ -28,6 +28,7 @@ const HEADER_SHORTCUT_IDS = [
   "createNote",
   "createFolder",
   "collapseAllFolders",
+  "searchNotes",
   "toggleCommandPalette",
 ] as const;
 
@@ -91,7 +92,7 @@ export function HeaderActions({
           {anyExpanded ? <FoldVerticalIcon size={16} /> : <UnfoldVerticalIcon size={16} />}
         </button>
       </Tooltip>
-      <Tooltip label="Search notes" side="bottom">
+      <Tooltip label="Search notes" side="bottom" shortcut={shortcutHints.searchNotes}>
         <button
           ref={searchTriggerRef}
           type="button"

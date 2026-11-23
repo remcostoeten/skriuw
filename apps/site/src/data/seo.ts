@@ -7,7 +7,7 @@ export const socialImage = {
   url: `${siteUrl}/og-image.png`,
   width: 1200,
   height: 630,
-  alt: "Skriuw: a local-first writing workspace",
+  alt: "Skriuw: a local-first notes app",
 };
 
 export const homeSchema = {
@@ -18,7 +18,8 @@ export const homeSchema = {
       "@id": `${siteUrl}/#website`,
       name: "Skriuw",
       url: `${siteUrl}/`,
-      description: "A local-first workspace for writing, journaling, and connected knowledge.",
+      description:
+        "A local-first notes app and journal. Notes are stored in SQLite on your device, with no account required.",
     },
     {
       "@type": "Organization",
@@ -31,7 +32,8 @@ export const homeSchema = {
       "@type": "SoftwareApplication",
       name: "Skriuw",
       url: `${siteUrl}/`,
-      description: "A local-first notes app for writing, journaling, and connected knowledge.",
+      description:
+        "A local-first notes app and journal that stores notes in SQLite on your device. No account is required, and you can export notes as Markdown.",
       image: socialImage.url,
       applicationCategory: "Productivity",
       operatingSystem: "macOS, Windows, Linux, Web",

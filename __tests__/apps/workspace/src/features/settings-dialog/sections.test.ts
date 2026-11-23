@@ -125,10 +125,10 @@ test("settings search includes descriptive paragraphs across sections", () => {
     ["before a note has content", "editor"],
     ["Pinned locked journal", "data"],
     ["without typing clicking scrolling", "lock"],
-    ["local workspace remains available", "account"],
+    ["local workspace works without an account", "account"],
     ["open pull requests", "about"],
     ["own copy", "ai"],
-    ["drop the lock key", "shortcuts"],
+    ["discard the lock key", "shortcuts"],
   ]) {
     assert.ok(
       filterSettingsSections(sections, query).some((section) => section.id === id),

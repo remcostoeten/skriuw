@@ -57,7 +57,7 @@ test("direction compares the two halves once each holds two rated days", () => {
     8,
   );
   assert.equal(up.direction, "up");
-  assert.equal(moodTrendSummary(up), "Mostly neutral, lifting lately");
+  assert.equal(moodTrendSummary(up), "Mostly neutral, trending up");
   const down = moodTrend(
     [
       entry("2026-09-11", "great"),
@@ -69,7 +69,7 @@ test("direction compares the two halves once each holds two rated days", () => {
     8,
   );
   assert.equal(down.direction, "down");
-  assert.equal(moodTrendSummary(down), "Mostly neutral, dipping lately");
+  assert.equal(moodTrendSummary(down), "Mostly neutral, trending down");
   const steady = moodTrend(
     [
       entry("2026-09-11", "good"),
@@ -81,7 +81,7 @@ test("direction compares the two halves once each holds two rated days", () => {
     8,
   );
   assert.equal(steady.direction, "steady");
-  assert.equal(moodTrendSummary(steady), "Mostly good, holding steady");
+  assert.equal(moodTrendSummary(steady), "Mostly good, steady");
   const sparse = moodTrend(
     [entry("2026-09-11", "rough"), entry("2026-09-18", "great")],
     "2026-09-18",

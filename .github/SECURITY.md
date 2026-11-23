@@ -2,7 +2,7 @@
 
 ## Reporting a vulnerability
 
-Please do not open a public issue for a suspected vulnerability.
+Do not open a public issue for a suspected vulnerability.
 
 Use GitHub's private vulnerability reporting:
 
@@ -22,4 +22,4 @@ Third-party services and dependencies should normally be reported to their maint
 
 ## Supported versions
 
-Security fixes target the latest v2 release and the currently deployed v1 web application. Historical desktop releases may not receive fixes; users should upgrade to the latest release when possible.
+Security fixes target the latest v2 release and the currently deployed v1 web application. Historical desktop releases may not receive fixes, so upgrade to the latest release when possible.

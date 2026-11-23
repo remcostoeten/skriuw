@@ -1,0 +1,50 @@
+.prosemirror-host {
+  position: relative;
+}
+
+.editor-line-numbers {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 0;
+  height: 0;
+  color: hsl(var(--muted-foreground) / 0.38);
+  font-family: var(--font-mono, ui-monospace, monospace);
+  font-size: 0.75rem;
+  font-variant-numeric: tabular-nums;
+  pointer-events: none;
+  user-select: none;
+}
+
+.prosemirror-host:not([data-line-numbers="true"]) .editor-line-numbers {
+  display: none;
+}
+
+.editor-line-number {
+  position: absolute;
+  right: 0.75rem;
+  white-space: nowrap;
+  text-align: right;
+  transition: color 120ms ease-out;
+}
+
+.ProseMirror-focused ~ .editor-line-numbers .editor-line-number[data-active="true"] {
+  color: hsl(var(--foreground) / 0.8);
+}
+
+.editor-host:has(.prosemirror-host[data-line-numbers="true"]) .block-gutter {
+  border-radius: calc(var(--radius) - 2px);
+  background: hsl(var(--theme-bg-editor));
+}
+
+@media (max-width: 899px) {
+  .editor-line-numbers {
+    display: none;
+  }
+}
+
+@media print {
+  .editor-line-numbers {
+    display: none;
+  }
+}

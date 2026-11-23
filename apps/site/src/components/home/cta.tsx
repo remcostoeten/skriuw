@@ -11,11 +11,11 @@ export function HomeCta() {
           free · open source · no account
         </span>
         <h2 className="mt-6 font-serif text-[40px] leading-[44px] font-normal tracking-[-1.2px] text-balance text-ink-900">
-          Open a page. Keep it yours.
+          Open Skriuw in your browser or on your desktop.
         </h2>
         <p className="mt-4 max-w-[440px] text-[15px] leading-[23px] text-ink-500">
-          The full app runs in your browser right now, with no install and no sign-up. The desktop
-          app is the same app, with your notes in a file on your own disk.
+          The browser app needs no install and no sign-up. The desktop app is the same app and
+          stores your notes in a SQLite file on your disk.
         </p>
         <div className="mt-8 grid gap-2 sm:grid-cols-2">
           <OpenAppLink placement="cta" className={primaryButton}>

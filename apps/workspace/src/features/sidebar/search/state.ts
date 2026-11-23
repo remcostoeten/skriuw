@@ -3,6 +3,7 @@ import type { FocusEvent, KeyboardEvent, RefObject } from "react";
 import type { RendererStore } from "@skriuw/renderer-core/store/types";
 import { focusTreeItem, type TreeRef } from "../tree/focus";
 import { activateNote, revealNode } from "../tree/operations";
+import { onSidebarSearchRequest } from "./request";
 
 export type SidebarSearch = {
   isOpen: boolean;
@@ -38,6 +39,16 @@ export function useSidebarSearch(store: RendererStore, treeRef: TreeRef): Sideba
       inputRef.current?.focus();
     }
   }, [isOpen]);
+
+  useEffect(
+    () =>
+      onSidebarSearchRequest(() => {
+        setIsOpen(true);
+        inputRef.current?.focus();
+        inputRef.current?.select();
+      }),
+    [],
+  );
 
   function close(restoreTrigger = false): void {
     setIsOpen(false);

@@ -207,7 +207,7 @@ export function describeBiometry(enrollment: BiometricEnrollment): string {
     case "off":
       return `Unlock notes with ${biometryNoun(enrollment.kind)} instead of typing your PIN.`;
     case "on":
-      return `Your PIN is held in this device's keystore, released by ${biometryNoun(enrollment.kind)}.`;
+      return `Your PIN is stored in this device's keystore. ${biometryNoun(enrollment.kind)} unlocks access to it.`;
   }
 }
 

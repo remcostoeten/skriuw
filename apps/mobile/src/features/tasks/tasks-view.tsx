@@ -233,7 +233,7 @@ export function TasksView() {
 
   const summaryText =
     rows.length === 0
-      ? "A little space for what’s next."
+      ? "Tasks come from checklist items in your notes."
       : [
           `${summary.open} open`,
           summary.overdue > 0 ? `${summary.overdue} overdue` : null,

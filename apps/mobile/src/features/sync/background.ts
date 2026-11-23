@@ -40,12 +40,13 @@ export function describeBackgroundStrategy(platform: MobilePlatform): Background
     {
       trigger: "foreground-resume",
       guarantee: "guaranteed",
-      detail: "Opening Skriuw always catches up with your other devices before anything else.",
+      detail: "Skriuw syncs with your other devices each time you open it.",
     },
     {
       trigger: "wake-channel",
       guarantee: "best-effort",
-      detail: "While Skriuw is open, changes from another device arrive within seconds.",
+      detail:
+        "While Skriuw is open, it receives change notices from your other devices and otherwise checks on a timer.",
     },
     {
       trigger: "silent-push",
@@ -70,8 +71,8 @@ export function describeBackgroundStrategy(platform: MobilePlatform): Background
 /** The one line the account screen leads with. */
 export function backgroundStrategySummary(platform: MobilePlatform): string {
   return platform === "ios"
-    ? "Skriuw syncs while it is open, and catches up the moment you reopen it. Background syncing is up to iOS and may not happen."
-    : "Skriuw syncs while it is open, and catches up the moment you reopen it.";
+    ? "Skriuw syncs while it is open and syncs again each time you reopen it. iOS decides whether background syncing runs, so it may not happen."
+    : "Skriuw syncs while it is open and syncs again each time you reopen it.";
 }
 
 export type BackgroundRefreshOutcome =

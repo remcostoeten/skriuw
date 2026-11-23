@@ -101,7 +101,11 @@ export function EditorSection({ store }: SectionProps) {
           onChange={(value) => change("editorLineHeight", value)}
         />
       </SettingsGroup>
-      <SettingsGroup id="writing" title="Writing" keywords="placeholder vim modal">
+      <SettingsGroup
+        id="writing"
+        title="Writing"
+        keywords="placeholder vim modal line numbers gutter"
+      >
         <PlaceholderField
           store={store}
           settings={settings}
@@ -113,6 +117,20 @@ export function EditorSection({ store }: SectionProps) {
           checked={settings.editorDefaultRawMode}
           changed={changed("editorDefaultRawMode")}
           onChange={(checked) => change("editorDefaultRawMode", checked)}
+        />
+        <SettingToggle
+          label="Line numbers"
+          detail="Number every line in the left margin of the rendered editor. Each line of a code block counts, and an image or table row counts as one."
+          checked={settings.editorLineNumbers}
+          changed={changed("editorLineNumbers")}
+          onChange={(checked) => change("editorLineNumbers", checked)}
+        />
+        <SettingToggle
+          label="Line numbers in raw Markdown"
+          detail="Number every row in the raw Markdown editor."
+          checked={settings.showLineNumbers}
+          changed={changed("showLineNumbers")}
+          onChange={(checked) => change("showLineNumbers", checked)}
         />
         <SettingToggle
           label="Vim keybindings"

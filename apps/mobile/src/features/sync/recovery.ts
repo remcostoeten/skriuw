@@ -117,11 +117,11 @@ export function blockedLabel(item: {
 export function blockedCause(reasonCode: string): string {
   switch (reasonCode) {
     case "asset_content_missing":
-      return "The image behind this change is not on this device yet. It uploads on its own once the image arrives.";
+      return "The image behind this change is not on this device yet. It uploads automatically once the image arrives.";
     case "operation_too_large":
-      return "This change is larger than sync can carry, so it can only be discarded.";
+      return "This change is too large to sync, so it can only be discarded.";
     case "unsupported_operation":
-      return "This app version's cloud cannot carry this change, so it can only be discarded.";
+      return "This app version's cloud cannot accept this change, so it can only be discarded.";
     case "cloud_rejected":
       return "The cloud refused this change.";
     default:

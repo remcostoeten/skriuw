@@ -58,7 +58,7 @@ test("a drifted index is surfaced as rebuilding before it is rebuilt", async () 
     views.map((view) => view.state),
     ["rebuilding", "current"],
   );
-  assert.equal(describeSearchIndex(views[0]!), "Rebuilding search index — 240 of 1000 notes.");
+  assert.equal(describeSearchIndex(views[0]!), "Rebuilding search index. 240 of 1000 notes indexed.");
   assert.equal(describeSearchIndex(outcome.view), null);
 });
 

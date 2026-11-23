@@ -22,18 +22,18 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   metadataBase: new URL("https://skriuw.com"),
   title: {
-    default: "Skriuw: Fast, Private, Local-First Notes App",
+    default: "Skriuw: Private, Local-First Notes App",
     template: "%s | Skriuw",
   },
   description:
-    "Skriuw is a local-first notes app for writing, journaling, and connected knowledge. Your notes are a SQLite file on your machine, with no account and no spinners.",
+    "Skriuw is a local-first notes app with a Markdown editor, a daily journal, tasks, and links between notes. It stores your notes in SQLite on your device and doesn't require an account.",
   openGraph: {
     type: "website",
     siteName: "Skriuw",
     url: "https://skriuw.com/",
-    title: "Skriuw: Fast, Private, Local-First Notes App",
+    title: "Skriuw: Private, Local-First Notes App",
     description:
-      "A local-first notes app that stays fast, keeps your notes on your machine, and puts sync in your hands.",
+      "A local-first notes app. Your notes are stored in SQLite on your device, and sync is opt-in.",
     images: [socialImage],
   },
   twitter: { card: "summary_large_image", images: [socialImage] },

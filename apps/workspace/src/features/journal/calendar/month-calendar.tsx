@@ -169,7 +169,7 @@ export function JournalCalendar({
       </div>
       <div
         role="group"
-        aria-label={`${formatMonthTitle(month)}. Arrow keys move by day, shift with an arrow jumps to the week edge or another month, Enter opens the focused day.`}
+        aria-label={`${formatMonthTitle(month)}. Arrow keys move by day. Shift with left or right arrow jumps to the start or end of the week. Shift with up or down arrow changes the month. Enter opens the focused day.`}
         onKeyDown={handleGridKeyDown}
         className="grid grid-cols-7 gap-0.5"
       >

@@ -15,14 +15,14 @@ export const settingsCopy = {
       "Show brief notices like “Moved to trash”. The undo shortcut keeps working while hidden.",
     addAiProviderSettingsAndWriting:
       "Add AI provider settings and writing tools to the workspace. Enabling this does not install or connect anything.",
-    finetuneTheSizeOfWorkspaceSurfaces: "Fine-tune the size of workspace surfaces.",
+    finetuneTheSizeOfWorkspaceSurfaces: "Adjust the size of the command palette.",
     commandPaletteSize: "Command palette size",
     howTallAndWideTheCommand: "How tall and wide the command palette opens on larger screens.",
     restoresAppearanceEditorAndKeyboardShortcuts:
       "Restores appearance, editor, and keyboard shortcuts to their defaults. Notes and workspace data are not affected.",
     turnOffAiFeatures: "Turn off AI features?",
     aiToolsAndSettingsWillDisappear:
-      "AI tools and settings will disappear immediately, and any request in progress will stop.",
+      "AI tools and settings are hidden immediately, and any request in progress stops.",
     savedProviderKeysHistoryAndPrompts:
       "Saved provider keys, history, and prompts stay on this device unless you delete them separately.",
     turnOffAi: "Turn off AI",
@@ -32,10 +32,11 @@ export const settingsCopy = {
     mathMacrosDescription:
       "Define workspace TeX commands, one per line: \\R = \\mathbb{R}. Use #1 through #9 for arguments. Macros sync with your workspace.",
     mathMacrosPortability:
-      "Markdown exports keep macro commands. Other editors need the same definitions; chemistry uses mhchem.",
-    tuneTheWritingSurfaceWithoutChanging: "Tune the writing surface without changing note content.",
+      "Markdown exports keep macro commands, so other editors need the same definitions. Chemistry uses mhchem.",
+    tuneTheWritingSurfaceWithoutChanging:
+      "Change how the editor looks without changing note content.",
     usedForNoteContentInThe: "Used for note content in the rendered editor.",
-    howMuchRoomEachLineOf: "How much room each line of text gets.",
+    howMuchRoomEachLineOf: "Space between lines of text.",
     defaultToRawMarkdown: "Default to raw Markdown",
     newNotesOpenInTheRaw: "New notes open in the raw Markdown editor. Toggle any note with mod+m.",
     modalEditingInBothEditorsNormal:
@@ -62,7 +63,7 @@ export const settingsCopy = {
     shownBeforeANoteHasContent: "Shown before a note has content.",
     dailyWordGoal: "Daily word goal",
     showsQuietProgressInTheJournal:
-      "Shows quiet progress in the journal day header and counts goal days in the stats. A change applies from today; earlier days keep the goal they had.",
+      "Shows progress in the journal day header and counts goal days in the stats. A change applies from today. Earlier days keep the goal they had.",
     mathMacrosSaved: "Math macros saved.",
     mathMacrosCouldNotBeSaved: "Math macros could not be saved. Try again.",
     rMathbbrnormLeftlvert1Rightrvert: "\\R = \\mathbb{R}\n\\norm = \\left\\lVert #1 \\right\\rVert",
@@ -81,11 +82,11 @@ export const settingsCopy = {
       "Pull a model from Ollama, then choose which local model future AI actions use.",
     noLocalModelsYetEnterA: "No local models yet. Enter a model name to pull one.",
     theInstructionsBehindEachWritingAction:
-      "The instructions behind each writing action. Edit a built-in to make your own copy of it; reset puts the shipped one back. Prompts hold no keys and sync with the rest of your workspace.",
+      "The prompt for each writing action. Editing a built-in prompt saves your own copy, and reset restores the original. Prompts contain no keys and sync with your workspace.",
     tellTheModelWhatToDo: "Tell the model what to do with the text.",
     maxOutputBytes: "Max output bytes",
     bringYourOwnKeyKeysGo:
-      "Bring your own key. Keys go straight to this device's credential store and are never readable from Skriuw again.",
+      "Bring your own key. Keys are saved in this device's system keyring or kept for this session only. Skriuw does not show a saved key again.",
     noModelsAreListedForThis: "No models are listed for this provider in the catalog.",
     thisSessionOnly: "This session only",
     chooseAModelForWritingTools:
@@ -105,7 +106,7 @@ export const settingsCopy = {
     promptTextWasNotRetainedFor: "Prompt text was not retained for this run.",
     keepPromptText: "Keep prompt text",
     offRecordsOnlyMetadataProviderModel:
-      "Off records only metadata — provider, model, state, timing, tokens, and cost.",
+      "Off records only metadata: provider, model, state, timing, tokens, and cost.",
     olderRunsAndRunsBeyondThe:
       "Older runs and runs beyond the cap are pruned as new runs are recorded.",
     deletesEveryRecordedRunAndIts:
@@ -121,11 +122,10 @@ export const settingsCopy = {
     reviewAndAccept: "Review and accept",
     replaceStoredKey: "Replace stored key",
     pasteApiKey: "Paste API key",
-    runPrivateModelsOnThisDevice: "Run private models on this device with Ollama.",
+    runPrivateModelsOnThisDevice: "Run models on this device with Ollama.",
     bringYourOwnApiKeyFor:
       "Bring your own API key for Anthropic, OpenAI, OpenRouter, Gemini, Groq, DeepSeek, Kimi, GLM, Qwen, or AI/ML API.",
-    customizeTheInstructionsBehindEachWriting:
-      "Customize the instructions behind each writing action.",
+    customizeTheInstructionsBehindEachWriting: "Edit the prompt for each writing action.",
     reviewLocalRunHistoryTokenCounts: "Review local run history, token counts, and estimated cost.",
     PromptNotRetained: " · prompt not retained",
     noCataloguePriceForThisModel: "no catalogue price for this model",
@@ -139,11 +139,11 @@ export const settingsCopy = {
   },
   shortcuts: {
     clickAShortcutThenPressA:
-      "Click a shortcut, then press a new key combination. Enter or clicking elsewhere keeps the current one, Escape cancels.",
+      "Click a shortcut, then press a new key combination. Enter or clicking elsewhere keeps the current one. Escape cancels.",
     noShortcutsMatch: "No shortcuts match “",
     reservedForQuit: "Reserved for “Quit”",
     twoOrThreeKeysHoldingCtrl:
-      "Two or three keys holding Ctrl or Cmd. Quit wins over any other shortcut on the same keys.",
+      "Use two or three keys with Ctrl or Cmd held. Quit takes priority over other shortcuts on the same keys.",
     unboundWhileQuitUsesTheSame: "Unbound while Quit uses the same keys.",
     resetAllShortcutsToDefaults: "Reset all shortcuts to defaults",
     quitWithAKeyboardShortcut: "Quit with a keyboard shortcut",
@@ -151,21 +151,21 @@ export const settingsCopy = {
   account: {
     encryptThisWorkspace: "Encrypt this workspace",
     losingItMeansLosingTheCloud:
-      "Losing it means losing the cloud copy. The notes on this device are unaffected.",
+      "If you lose it, you cannot open the cloud copy again. Notes on this device are not affected.",
     iWroteItDown: "I wrote it down",
     enterTheCodeThisWorkspaceShowed:
       "Enter the code this workspace showed when encryption was turned on.",
     changesMadeBeforeEncryptionWasTurned:
       "Changes made before encryption was turned on stay in the cloud until the next encrypted checkpoint replaces them. Keep this device online until sync reports it is up to date.",
     signInForCloudCapabilitiesYour:
-      "Sign in for cloud capabilities. Your local workspace remains available without an account.",
+      "Sign in to use Skriuw cloud, including sync. Your local workspace works without an account.",
     notesOnThisDevice: "Notes on this device",
     deleteAccountAndAllData: "Delete account and all data",
     permanentlyDeletesYourCloudAccountSynced:
       "Permanently deletes your cloud account, synced workspace, shared notes, and all Skriuw workspaces and recovery files on this device. This cannot be undone.",
     showTheFaceGeneratedForYour:
       "Show the face generated for your account. Turn off to show your initials instead.",
-    ItNeverUploadedAndOther: "; it never uploaded and other devices will not receive it.",
+    ItNeverUploadedAndOther: ". It was never uploaded and other devices will not receive it.",
     showMyRecoveryCode: "Show my recovery code",
     theCodeIsShownOnceWithout:
       "The code is shown once. Without it, the cloud copy cannot be opened again.",
@@ -184,7 +184,7 @@ export const settingsCopy = {
     notLinkedToAnAccountYet:
       "Not linked to an account yet. The first account to sign in keeps these notes.",
     linkedToACloudAccountSign:
-      "Linked to a cloud account. Sign back into it to keep working on these notes; a different account opens a workspace of its own.",
+      "Linked to a cloud account. Sign back into it to keep working on these notes. A different account opens a workspace of its own.",
   },
   lock: {
     privacyLock: "Privacy & lock",
@@ -198,7 +198,7 @@ export const settingsCopy = {
     closesLockedNotesTheMomentYou:
       "Closes locked notes the moment you switch to another app or tab.",
     removeTheLock: "Remove the lock",
-    unlocksEveryLockedNoteForGood: "Unlocks every locked note for good and forgets the ",
+    unlocksEveryLockedNoteForGood: "Unlocks every locked note permanently and forgets the ",
     andRecoveryCode: " and recovery code.",
     noLockSetUpLockA: "No lock set up. Lock a note from its context menu or set one up here.",
     text1LockedNote: "1 locked note",
@@ -215,7 +215,7 @@ export const settingsCopy = {
     storedDurablyInThisBrowsersPrivate:
       "Stored durably in this browser’s private site storage (OPFS) on this device. Clearing site data for this origin deletes it, so keep a recent exported archive outside the browser.",
     addsSkriuwToYourHomeScreen:
-      "Adds Skriuw to your home screen or app list with its own window, and tells the browser this storage is worth keeping.",
+      "Adds Skriuw to your home screen or app list with its own window, and asks the browser to keep this storage.",
     showInFileManager: "Show in file manager",
     copiesTheDatabaseImagesHistoryAnd:
       "Copies the database, images, history, and backups to a new folder, then restarts the app using it.",
@@ -228,7 +228,7 @@ export const settingsCopy = {
       "ZIP, Evernote ENEX, Joplin, Google Keep, Standard Notes, Bear .bear2bk, Simplenote JSON, Notion CSV, Markdown, or text files. Shows a preview before anything changes.",
     remoteImagesInImports: "Remote images in imports",
     imagesThatMarkdownLinksFromThe:
-      "Images that Markdown links from the web, such as README badges. Downloading fetches each one once during import and stores it in the workspace; notes never load them from the web when opened.",
+      "Images that Markdown links from the web, such as README badges. Downloading fetches each one once during import and stores it in the workspace. Notes never load them from the web when opened.",
     backupsRecovery: "Backups & recovery",
     verifiedScheduledBackupsRunInThe:
       "Verified scheduled backups run in the desktop app. In the browser, an exported archive is the backup: download one regularly and keep it outside this browser.",

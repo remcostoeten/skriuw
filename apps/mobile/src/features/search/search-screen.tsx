@@ -162,7 +162,7 @@ function EmptyState({ failed, query, running, status }: EmptyStateProps) {
     status === "idle"
       ? query.trim().length === 0
         ? "Search the workspace by text, by #tag, or by $person."
-        : "Keep typing — full-text search starts at two characters."
+        : "Keep typing. Full-text search starts at two characters."
       : running
         ? "Searching…"
         : `No notes match “${query.trim()}”.`;

@@ -12,13 +12,13 @@ import { socialImage } from "@/data/seo";
 export const metadata: Metadata = {
   title: "Documentation: features, architecture, performance contract and decision records",
   description:
-    "The Skriuw documentation: every feature of the local-first notes app, the architecture behind it, the performance contract it is held to, and the decision records.",
+    "Skriuw documentation: the feature list, the architecture, the performance contract and the architecture decision records.",
   alternates: { canonical: "/docs/" },
   openGraph: {
     siteName: "Skriuw",
     title: "Skriuw documentation",
     description:
-      "Features, architecture, and the performance contract, read here and written in the repository.",
+      "The feature list, architecture, performance contract and decision records, rendered from the Skriuw repository.",
     url: "https://skriuw.com/docs/",
     images: [socialImage],
   },
@@ -33,15 +33,15 @@ export default async function DocsIndexPage() {
       <PageHero
         index="05"
         label="documentation"
-        marks={["Written in the repo", "Rendered here", "Always current"]}
+        marks={["Written in the repo", "Rendered at build time", "Source linked on each page"]}
         eyebrow="Skriuw documentation"
         title={
           <>
-            The same documents that ship with the source,
-            <span className="text-ink-500"> readable without leaving the site.</span>
+            The documents in the repository,
+            <span className="text-ink-500"> rendered on this site.</span>
           </>
         }
-        lede="Every page here is generated at build time from the Markdown in the repository, so the site and the source can never drift apart."
+        lede="This site renders each page at build time from the Markdown files in the repository. Every page links to its source file."
         actions={[
           { label: "Every feature", href: "/docs/features/" },
           { label: "Browse the repository", href: repoUrl },
@@ -49,11 +49,7 @@ export default async function DocsIndexPage() {
       />
 
       <section>
-        <SectionHead
-          index="01"
-          label="pages"
-          title="Start with the features, then read the reasoning behind them."
-        />
+        <SectionHead index="01" label="pages" title="Documentation pages." />
         <ul className="mt-8 grid list-none gap-3 p-0 sm:grid-cols-2">
           {docPages.map((page) => (
             <li key={page.slug} className={cn(card, "relative flex flex-col p-6")}>
@@ -111,8 +107,8 @@ export default async function DocsIndexPage() {
       </section>
 
       <PageCta
-        title="Documentation is nice. Writing in it is better."
-        body="Open the browser build and try the editor these pages describe. Nothing to install, no account."
+        title="Try the editor these pages describe."
+        body="The browser build needs no install and no account."
         actions={[
           { label: "Changelog", href: "/changelog/" },
           { label: "Download", href: "/download/" },

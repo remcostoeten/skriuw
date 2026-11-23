@@ -85,7 +85,7 @@ function ollamaGroup(
       label: entry.label,
       detail: entry.approxSize,
       available: false,
-      disabledReason: runtimeReason ?? "Not installed — pull it in AI settings",
+      disabledReason: runtimeReason ?? "Not installed. Pull it in AI settings",
     });
   }
   return { providerId: OLLAMA_PROVIDER_ID, label: OLLAMA_PROVIDER_LABEL, options };

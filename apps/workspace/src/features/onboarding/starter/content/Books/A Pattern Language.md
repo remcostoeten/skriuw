@@ -1,10 +1,10 @@
 # A Pattern Language
 
-The companion to [[The Timeless Way of Building]]: hundreds of patterns, from regions down to window seats.
+The companion to [[The Timeless Way of Building]]. It lists hundreds of patterns, from regions down to window seats.
 
 ## Why it's here
 
-Every pattern links to the larger ones it supports and the smaller ones that complete it, which is how a good set of notes works too.
+Every pattern links to the larger patterns it supports and the smaller patterns that complete it. Linked notes work the same way.
 
 ## Before starting
 

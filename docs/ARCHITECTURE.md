@@ -1,6 +1,8 @@
 # Architecture
 
-Skriuw is a Rust core with a React interface on top. The Rust core keeps your workspace in a SQLite database on your own device, and the interface keeps a full copy of it in memory. When you press a key, the interface updates its in-memory copy and paints the screen in the same frame. It then sends a small message describing the change to a queue in the Rust core, which writes it to SQLite in one transaction and updates the search index in that same transaction. Git history and sync run later, in the background. The screen never waits for any of this.
+Skriuw is a Rust core with a React interface on top. The Rust core keeps your workspace in a SQLite database on your own device, and the interface keeps a full copy of it in memory.
+
+When you press a key, the interface updates its in-memory copy and paints the screen in the same frame. It then sends a small message describing the change to a queue in the Rust core. The core writes the change to SQLite and updates the search index in one transaction. Git history and sync run later, in the background, and the screen never waits for them.
 
 ## Context
 
@@ -56,7 +58,9 @@ All backend access goes through one serialized runtime queue. Requests run one a
 
 Every clone of the runtime shares one lifecycle state. Shutdown stops new submissions in one atomic step, then finishes the work it already accepted, resolves every pending completion, and joins the worker thread, which means it waits for that thread to exit. Dropping the last handle performs the same join. Shell teardown and database replacement must call shutdown away from threads where latency matters.
 
-Save-only requests that are already queued next to each other may share one storage call. Each request still gets its own acknowledgement. The runtime never waits to form a batch, caps each batch at 64 requests, and treats any other kind of request as a barrier that ends the batch. SQLite commits each batch in one outer transaction with one savepoint per original request. A savepoint is a checkpoint inside a transaction that can be rolled back on its own. So a conflict in one request stays isolated, and every successful revision still gets its own full-text search (FTS) update and its own history outbox row.
+Save-only requests that are already queued next to each other may share one storage call. Each request still gets its own acknowledgement. The runtime never waits to form a batch, caps each batch at 64 requests, and treats any other kind of request as a barrier that ends the batch.
+
+SQLite commits each batch in one outer transaction with one savepoint per original request. A savepoint is a checkpoint inside a transaction that can be rolled back on its own. A conflict in one request therefore stays isolated, and every successful revision still gets its own full-text search (FTS) update and its own history outbox row.
 
 ### Errors and diagnostics
 
@@ -247,7 +251,7 @@ See [docs/data-model.md](data-model.md).
 
 ## Performance
 
-Performance is tested as a contract, not assumed from the choice of framework. See [docs/performance-contract.md](performance-contract.md).
+Skriuw tests performance against a written contract. See [docs/performance-contract.md](performance-contract.md).
 
 The C3 production gate is the release check behind that contract ([C3 results](benchmarks/2026-07-23-product-c3.md)). It drives the real renderer, external store, shell, and editor through deterministic native bridge fixtures, which are repeatable stand-ins for the native backend. It then profiles each context separately: 1,000 and 5,000 notes, and 50, 500 and 2,000 blocks. The named Linux reference run ([results](benchmarks/2026-07-24-reference-production.md)) records 300 cached note switches with zero dropped frames, no bridge or resource work during navigation, no editor remount, zero React commits while typing, and every timing budget met. A React commit is React applying a render to the page. Raw workflow and performance samples are committed with the release evidence. Native durability is enforced by the Rust and Tauri suites, not by simulated browser state.
 
@@ -311,4 +315,8 @@ Each architecture decision record (ADR) explains why one part of the system work
 - [ADR-0055: workspace module boundaries](adr/0055-workspace-module-boundaries.md)
 - [ADR-0059: one native sync runtime, platforms supply the IO](adr/0059-shared-native-sync-runtime.md)
 
-Personal templates are ordinary notes used as sources. Saved searches, and which notes count as templates, are stored in bounded workspace preferences. See [ADR-0038](adr/0038-personal-template-and-search-preferences.md). Modal Vim editing is one `vimMode` setting. It turns on CodeMirror's Vim extension in the raw Markdown view and a Vim plugin built on the document model in the rendered editor; see [ADR-0042](adr/0042-modal-vim-editing.md). Sync refresh retries and full-text search filtered to a set of candidate notes follow the [refresh and search contract](specs/refresh-and-filtered-search.md).
+Personal templates are ordinary notes used as sources. Saved searches, and which notes count as templates, are stored in bounded workspace preferences. See [ADR-0038](adr/0038-personal-template-and-search-preferences.md).
+
+Modal Vim editing is one `vimMode` setting. It turns on CodeMirror's Vim extension in the raw Markdown view and a Vim plugin built on the document model in the rendered editor. See [ADR-0042](adr/0042-modal-vim-editing.md).
+
+Sync refresh retries and full-text search filtered to a set of candidate notes follow the [refresh and search contract](specs/refresh-and-filtered-search.md).

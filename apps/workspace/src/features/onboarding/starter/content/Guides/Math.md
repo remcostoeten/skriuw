@@ -30,7 +30,7 @@ $$
 \begin{pmatrix}1 & 2 \\ 3 & 4\end{pmatrix}
 $$
 
-## Take the source with you
+## Export and import
 
 Exported Markdown uses `$...$` for inline equations and `$$` lines around display equations. Both forms also work when importing Markdown.
 

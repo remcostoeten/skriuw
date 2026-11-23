@@ -1,6 +1,6 @@
 # Contributing to Skriuw
 
-Thank you for helping improve Skriuw. Bug fixes, documentation improvements, tests, accessibility work, and focused features are welcome.
+Skriuw accepts bug fixes, documentation changes, tests, accessibility work, and focused features.
 
 ## Before you start
 
@@ -31,7 +31,7 @@ Build individual targets with:
 ./bin/build desktop
 ```
 
-TypeScript is formatted by oxfmt and linted by oxlint; both run inside `./bin/check`. Run them directly from the repository root:
+oxfmt formats TypeScript and oxlint lints it. Both run inside `./bin/check`. Run them directly from the repository root:
 
 ```bash
 bun run format        # rewrite files in place
@@ -39,20 +39,15 @@ bun run lint          # report findings
 bun run lint:fix      # apply safe automatic fixes
 ```
 
-The rule set and the reasoning behind it are recorded in [ADR-0050](../docs/adr/0050-typescript-format-and-lint.md). Fix findings rather than suppressing them; a suppression needs `-- <reason>` on the same line.
+The rule set and the reasoning behind it are recorded in [ADR-0050](../docs/adr/0050-typescript-format-and-lint.md). Fix findings rather than suppressing them. A suppression needs `-- <reason>` on the same line.
 
 See [docs/development.md](../docs/development.md#commands) for the command reference.
 
-Generic v2 utilities belong in [`packages/shared`](../packages/shared/README.md).
-Import helpers directly from `@skriuw/shared/helpers/<name>`; keep product rules
-in `renderer-core`. See [TypeScript testing](../docs/testing.md) for suite placement.
+Generic v2 utilities belong in [`packages/shared`](../packages/shared/README.md). Import helpers directly from `@skriuw/shared/helpers/<name>`, and keep product rules in `renderer-core`. See [TypeScript testing](../docs/testing.md) for suite placement.
 
 ### v2 mobile
 
-`apps/workspace/`, `apps/site/`, `apps/mobile/`, and `packages/*` are Bun workspaces resolved from one root
-lockfile, so `bun install` at the repository root installs them together. `apps/sync/`,
-the harnesses under `apps/workspace/harnesses/` and `v1-final/` stay outside the workspace and
-keep their own installs.
+`apps/workspace/`, `apps/site/`, `apps/mobile/`, and `packages/*` are Bun workspaces resolved from one root lockfile, so `bun install` at the repository root installs them together. `apps/sync/`, the harnesses under `apps/workspace/harnesses/` and `v1-final/` stay outside the workspace and keep their own installs.
 
 ```bash
 bun install          # from the repository root
@@ -61,13 +56,9 @@ bun install          # from the repository root
 ./bin/eas help       # EAS builds, credentials, devices and store submission
 ```
 
-`./bin/check mobile` is deliberately separate from `./bin/check`.
-Run it for changes under `apps/mobile/`, `packages/` or `crates/skriuw-mobile`.
+`./bin/check mobile` is separate from `./bin/check`. Run it for changes under `apps/mobile/`, `packages/` or `crates/skriuw-mobile`.
 
-Android is the local verification target; iOS artifacts come from EAS builds.
-The client is described by
-[ADR-0048](../docs/adr/0048-native-mobile-shell-over-shared-core.md) and
-[docs/specs/mobile-app.md](../docs/specs/mobile-app.md).
+Android is the local verification target, and iOS artifacts come from EAS builds. The client is described by [ADR-0048](../docs/adr/0048-native-mobile-shell-over-shared-core.md) and [docs/specs/mobile-app.md](../docs/specs/mobile-app.md).
 
 ### v1
 
@@ -99,7 +90,7 @@ bun run build
 - Update durable documentation when an interface, command, or workflow changes.
 - Include screenshots or recordings for visible interface changes.
 - Preserve unrelated working-tree changes.
-- Ensure generated contracts and lockfiles are current when applicable.
+- Update generated contracts and lockfiles when your change affects them.
 - Run the checks relevant to the files you changed.
 
 Architecture decisions for v2 live in [docs/adr](../docs/adr). Changes that contradict an accepted decision should update or supersede the ADR explicitly.

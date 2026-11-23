@@ -138,7 +138,7 @@ export function ImportPreviewHost() {
               <span>Group notes into folders by year created</span>
             </label>
           </div>
-          <span className="text-muted-foreground">Provenance</span>
+          <span className="text-muted-foreground">Origin</span>
           <label className="flex cursor-pointer items-center gap-2 text-muted-foreground">
             <Checkbox
               name="import-record-source"
@@ -189,8 +189,8 @@ export function ImportPreviewHost() {
         </section>
 
         <p className="m-0 text-[11px] text-muted-foreground">
-          Destination and re-import choices are included in this preview. Workspace changes and
-          durable receipts commit together.
+          This preview includes your destination and re-import choices. Workspace changes and import
+          receipts are saved together.
         </p>
 
         <div className="flex justify-end gap-2 border-t border-border pt-3">

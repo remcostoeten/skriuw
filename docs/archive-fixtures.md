@@ -1,6 +1,6 @@
 # Archive compatibility fixtures
 
-Golden `WorkspaceArchive` JSON proves that every supported archive version keeps deserializing, validating, importing, and re-exporting identically across releases. See [ADR-0019](adr/0019-archive-compatibility-fixtures.md) for the decision record.
+Golden `WorkspaceArchive` JSON (sample archives that never change) proves that every supported archive version keeps deserializing, validating, importing, and re-exporting identically across releases. See [ADR-0019](adr/0019-archive-compatibility-fixtures.md) for the decision record.
 
 ## Layout
 
@@ -31,7 +31,7 @@ __tests__/fixtures/archives/
 - `v5/prompts.json` covers a built-in prompt override and a custom prompt, including input shape and optional generation limits.
 - `v6/annotations.json` covers an open annotation thread with replies and a resolved annotation whose original text no longer exists in the document.
 
-Fixture bytes are immutable compatibility inputs. Never regenerate them from current code to make a failing test pass; a mismatch means the production format drifted.
+Fixture bytes are immutable compatibility inputs. Never regenerate them from current code to make a failing test pass. A mismatch means the production format drifted.
 
 ## Enforcement
 
@@ -40,13 +40,15 @@ Fixture bytes are immutable compatibility inputs. Never regenerate them from cur
 
 Fixtures are stored in the canonical export order (nodes by `(parent_id, rank, id)` with root nodes first, documents by `note_id`), so round-trip comparisons use direct typed equality with no normalization.
 
-Exports always emit the current archive version (`WORKSPACE_ARCHIVE_VERSION`, currently 6). Importing an older supported fixture and re-exporting therefore produces the fixture's content at the current version; the SQLite round-trip tests compare against the fixture with only `archiveVersion` upgraded. Version 2 added the optional node field `pinnedAt`; version 1 archives without it deserialize with `pinnedAt = null`. Version 3 added typed properties and property templates, version 4 added `tasks`, version 5 added workspace prompts, and version 6 added annotations. Older archives deserialize fields introduced later as empty collections.
+Exports always emit the current archive version (`WORKSPACE_ARCHIVE_VERSION`, currently 6). Importing an older supported fixture and re-exporting therefore produces the fixture's content at the current version. The SQLite round-trip tests compare against the fixture with only `archiveVersion` upgraded.
+
+Version 2 added the optional node field `pinnedAt`. Version 1 archives without it deserialize with `pinnedAt = null`. Version 3 added typed properties and property templates, version 4 added `tasks`, version 5 added workspace prompts, and version 6 added annotations. Older archives deserialize fields introduced later as empty collections.
 
 ## Adding a new archive version
 
 1. Ship the versioned compatibility/migration code that makes production actually accept the new version.
 2. Create `__tests__/fixtures/archives/v<version>/` with at least one small, single-purpose golden file exported by that code.
 3. Add the version and files to `manifest.json`.
-4. Extend both test files where version-specific assertions apply; the catalogue tests fail until manifest, directories, and the production supported set agree.
+4. Extend both test files where version-specific assertions apply. The catalogue tests fail until manifest, directories, and the production supported set agree.
 5. Keep every still-supported older version's fixtures untouched.
 6. Update ADR-0019 if the supported-version or normalization policy changes.

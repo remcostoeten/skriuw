@@ -380,7 +380,7 @@ function VoiceDictationBody({ store, signal, getView, getNoteId, noteId }: BodyP
   const statusLine =
     run.phase === "recording"
       ? recorder.state.recording
-        ? `Recording — ${formatRecordingClock(recorder.state.seconds)} of ${formatRecordingClock(MAX_RECORDING_SECONDS)}`
+        ? `Recording ${formatRecordingClock(recorder.state.seconds)} of ${formatRecordingClock(MAX_RECORDING_SECONDS)}`
         : (recorder.state.error ?? "Starting the microphone…")
       : run.phase === "transcribing"
         ? `Transcribing with ${voiceModel?.label ?? "the selected model"}…`

@@ -49,7 +49,7 @@ const MESSAGES: Record<TaskWriteRefusal, string> = {
     "The source note could not be read here. Open it in the editor to change it.",
   "already-linked": "That checklist item is already a task.",
   "empty-title": "Give the checklist item some text before promoting it.",
-  "invalid-identity": "That task could not be given an identity.",
+  "invalid-identity": "That task could not be assigned an ID.",
   "not-linked": "That task has no checklist item to change.",
 };
 

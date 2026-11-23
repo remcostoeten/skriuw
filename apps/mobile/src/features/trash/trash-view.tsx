@@ -64,7 +64,7 @@ export function TrashView() {
         </Text>
         <Text style={[styles.subtitle, { color: theme.color("muted-foreground") }]}>
           {entries.length === 0
-            ? "Deleted notes stay recoverable here."
+            ? "Deleted notes can be restored from here."
             : `${entries.length} deleted ${entries.length === 1 ? "item" : "items"}`}
         </Text>
       </View>
@@ -140,7 +140,7 @@ function EmptyTrash({ theme }: EmptyTrashProps) {
     <View style={styles.empty}>
       <Text style={[styles.emptyTitle, { color: theme.color("foreground") }]}>Trash is empty</Text>
       <Text style={[styles.emptyDetail, { color: theme.color("muted-foreground") }]}>
-        Deleted notes will wait here until you restore or remove them.
+        Deleted notes appear here. Restore them or delete them permanently.
       </Text>
     </View>
   );

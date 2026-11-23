@@ -60,7 +60,7 @@ function parsed(items: readonly AiPlanItem[], noun: string): AiPlanParse {
   if (items.length > MAX_PLAN_ITEMS) {
     return {
       ok: false,
-      message: `The model proposed ${items.length} ${noun}; the limit is ${MAX_PLAN_ITEMS}. Run it on a smaller note.`,
+      message: `The model proposed ${items.length} ${noun}, but the limit is ${MAX_PLAN_ITEMS}. Run it on a smaller note.`,
     };
   }
   return { ok: true, items };

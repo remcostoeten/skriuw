@@ -46,7 +46,7 @@ const SEEDS: readonly Seed[] = [
     kind: "note",
     parentId: "folder-field-notes",
     title: "Edge swipe",
-    body: "A pull from the left edge opens the tree; a pull back closes it.",
+    body: "A pull from the left edge opens the tree. A pull back closes it.",
   },
   { id: "folder-reading", kind: "folder", parentId: "folder-field-notes", title: "Reading" },
   {
@@ -69,7 +69,7 @@ const SEEDS: readonly Seed[] = [
     kind: "note",
     parentId: null,
     title: "Inbox",
-    body: "Anything caught from the share sheet lands here.",
+    body: "Anything shared through the share sheet is saved here.",
   },
 ];
 

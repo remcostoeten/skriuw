@@ -4,7 +4,7 @@ This contract sets how quickly Skriuw must respond to each interaction, the rule
 
 ## Meaning of instant
 
-Instant means same-frame feedback with no visible intermediate loading state: the response to a click or key press is drawn in the next frame, with no spinner, placeholder, or half-loaded view in between. Physics prevents literal zero duration, so the rule is about structure instead. Architecture must remove asynchronous dependencies from interaction paths: the code that runs between an interaction and its response never waits on something that finishes later, such as the disk, the network, or a reply from the Rust core.
+Instant means same-frame feedback with no visible intermediate loading state: the response to a click or key press is drawn in the next frame, with no spinner, placeholder, or half-loaded view in between. Literal zero duration is impossible, so the rule is about structure instead. Architecture must remove asynchronous dependencies from interaction paths: the code that runs between an interaction and its response never waits on something that finishes later, such as the disk, the network, or a reply from the Rust core.
 
 ## Terms
 
@@ -49,7 +49,7 @@ Reference hardware will be fixed before implementation benchmarks begin.
 
 ## Hard invariants
 
-These rules hold regardless of timing. Each one removes a kind of work from the paths you use most.
+These rules hold regardless of timing. Each rule keeps one kind of work off the paths you use most.
 
 - No IPC during note navigation: opening another note sends nothing to the Rust core and waits for no reply.
 - No database read during note navigation: the note is already in memory, so SQLite is not queried.
@@ -79,11 +79,15 @@ The benchmarks run against these fixtures. A block is one paragraph, heading, li
 
 ## Enforcement
 
-Performance marks surround selection dispatch, editor-state installation, command opening, keystroke handling, and next paint. A performance mark is a timestamp the code records through the browser's Performance API, so each step is timed from the moment a note is selected, through putting its editor state in place, to the next frame on screen. Long Animation Frame observations capture blocking work. React profiling records commits and affected component names. React Scan exposes avoidable renders during development but is not treated as proof of performance.
+Performance marks surround selection dispatch, editor-state installation, command opening, keystroke handling, and next paint. A performance mark is a timestamp the code records through the browser's Performance API. Each step is therefore timed from the moment a note is selected, through putting its editor state in place, to the next frame on screen.
 
-The benchmark harness runs a production build on fixed reference hardware. Its fixtures, options and informational scenarios are described in [`apps/workspace/performance/README.md`](../apps/workspace/performance/README.md). Chrome is the reference browser; a WebKitGTK run reports the budgets it cannot measure as N/A. It stores raw samples, P50, P95, P99, maximum duration, dropped frames, long tasks, React commit counts, and editor-host mount counts. Raw samples are every individual timing, kept next to the summaries so a result can be checked later, and the editor-host mount count shows whether the editor was rebuilt. CI uses a stable dedicated performance runner; ordinary shared CI runs functional checks without pretending timing is deterministic. CI (continuous integration) is the set of automated checks that runs on every proposed change. Its shared machines check that things work but do not judge timing, because their speed varies from run to run.
+Long Animation Frame observations capture blocking work. React profiling records commits and affected component names. React Scan exposes avoidable renders during development but is not treated as proof of performance.
 
-Architecture changes failing budgets do not merge without an explicit ADR and a replacement measurement. An ADR (architecture decision record) is a short document in [`docs/adr`](adr) that records a design decision and the reasons for it.
+The benchmark harness runs a production build on fixed reference hardware. Its fixtures, options and informational scenarios are described in [`apps/workspace/performance/README.md`](../apps/workspace/performance/README.md). Chrome is the reference browser; a WebKitGTK run reports the budgets it cannot measure as N/A. It stores raw samples, P50, P95, P99, maximum duration, dropped frames, long tasks, React commit counts, and editor-host mount counts. Raw samples are every individual timing, kept next to the summaries so a result can be checked later. The editor-host mount count shows whether the editor was rebuilt.
+
+CI (continuous integration) is the set of automated checks that runs on every proposed change. CI uses a stable dedicated performance runner to judge timing. Ordinary shared CI runs functional checks only, because the speed of its machines varies from run to run.
+
+An architecture change that fails a budget does not merge without an explicit ADR and a replacement measurement. An ADR (architecture decision record) is a short document in [`docs/adr`](adr) that records a design decision and the reasons for it.
 
 ## Render invariants
 
@@ -98,4 +102,6 @@ Each interaction may re-render only the parts of the interface listed here.
 | Metadata edit | Changed field consumers only | Editing a property re-renders only what shows that property. |
 | Command palette query | Palette result surface only | Typing in the command palette re-renders only its result list. |
 
-Component counts are finalized after the UI decomposition exists. Any component rendering identical output is a regression regardless of whether the frame budget still passes. In plain terms, the exact number of components allowed to re-render per interaction is set once the interface is split into its final components, and a component that re-renders only to produce the same output as before counts as a step backwards even when the interaction still fits its time budget.
+Component counts are finalized after the UI decomposition exists. Any component rendering identical output is a regression regardless of whether the frame budget still passes.
+
+In plain terms, the exact number of components allowed to re-render per interaction is set once the interface is split into its final components. A component that re-renders only to produce the same output as before is a regression, even when the interaction still fits its time budget.

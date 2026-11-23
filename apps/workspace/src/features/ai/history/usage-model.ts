@@ -119,7 +119,7 @@ export function runStateLabel(state: AiRunState): string {
  * Every token or cost figure derived from estimated counts must carry it.
  */
 export function tokenSourceNote(estimated: boolean): string | null {
-  return estimated ? "Estimated — this provider reported no token counts." : null;
+  return estimated ? "Estimated. This provider reported no token counts." : null;
 }
 
 export function runTokenSummary(run: AiRunRecord): string {

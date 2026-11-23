@@ -76,7 +76,7 @@ export function describeSyncStatus(status: WorkspaceSyncStatus): SyncPresentatio
     case "retrying":
       return {
         summary: "Cloud unavailable, retrying…",
-        detail: "Nothing is lost; the next attempt runs automatically.",
+        detail: "Changes stay on this device. The next attempt runs automatically.",
         tone: "attention",
         action: "retry",
       };
@@ -103,17 +103,17 @@ export function blockedStateText(reason: string, detail: string | null): string 
     case "push_conflict":
       return "Another device uploaded a conflicting change. Retry to reconcile.";
     case "protocol_mismatch":
-      return "This app and the cloud speak different sync protocols. Update Skriuw, then retry.";
+      return "This app and the cloud use different sync protocol versions. Update Skriuw, then retry.";
     case "rejected_acknowledgement":
     case "rejected_checkpoint":
     case "rejected_batch":
       return "The cloud rejected the last upload. Review the blocked changes, then retry.";
     case "storage_failure":
-      return "This device's sync queue hit a storage failure. Retry; if it persists, reinstall from your account.";
+      return "This device's sync queue failed to write to storage. Retry. If it keeps failing, reinstall and restore from your account.";
     case "encryption_key_required":
       return "This workspace is encrypted and this device has no key. Enter its recovery code.";
     case "encryption_downgrade_refused":
-      return "The cloud returned unencrypted content for an encrypted workspace, and it was refused. Nothing was applied.";
+      return "The cloud sent unencrypted content for an encrypted workspace. Skriuw rejected it and applied nothing.";
     case "sealed_content_unreadable":
       return "The encrypted cloud copy could not be opened with this device's recovery code.";
     case "server_too_old":

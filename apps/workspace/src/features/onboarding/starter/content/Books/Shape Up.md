@@ -1,10 +1,10 @@
 # Shape Up
 
-A way of running product work in fixed cycles with shaped, bounded pitches.
+A method for product work in fixed cycles, using written pitches with a limited scope.
 
 ## Why it's here
 
-Fixed time and variable scope is a useful default far outside software teams.
+It fixes the time for a project and lets the scope vary. That approach can apply outside software teams.
 
 ## Before starting
 

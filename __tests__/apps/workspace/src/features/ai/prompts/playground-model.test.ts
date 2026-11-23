@@ -50,7 +50,7 @@ test("prompt byte bound counts UTF-8 bytes, not characters", () => {
   const oversized = promptByteError("é".repeat(MAX_PLAYGROUND_PROMPT_BYTES / 2), "x");
   assert.ok(oversized !== null);
   assert.match(oversized, /1,048,576/);
-  assert.match(oversized, /not be truncated/);
+  assert.match(oversized, /doesn't truncate/);
 });
 
 test("prompts exactly at the bound pass and one byte over fails", () => {

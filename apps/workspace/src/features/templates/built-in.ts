@@ -30,7 +30,7 @@ export const NOTE_TEMPLATES: readonly NoteTemplate[] = [
   {
     id: "blank",
     name: "Blank note",
-    description: "An empty writing surface.",
+    description: "An empty note.",
     propertyTemplateId: null,
     buildMarkdown: () => "# Untitled\n\n",
   },
@@ -58,7 +58,7 @@ export const NOTE_TEMPLATES: readonly NoteTemplate[] = [
     name: "Meeting notes",
     description: "Agenda, notes and action items, with meeting fields.",
     propertyTemplateId: "meeting",
-    buildMarkdown: (at) => `# Meeting — ${isoDate(at)}
+    buildMarkdown: (at) => `# Meeting ${isoDate(at)}
 
 ## Agenda
 
@@ -95,7 +95,7 @@ export const NOTE_TEMPLATES: readonly NoteTemplate[] = [
   {
     id: "todo",
     name: "To-do list",
-    description: "A simple checklist to track tasks.",
+    description: "A checklist for tracking tasks.",
     propertyTemplateId: null,
     buildMarkdown: () => `# To-do
 
@@ -109,7 +109,7 @@ export const NOTE_TEMPLATES: readonly NoteTemplate[] = [
     name: "Weekly review",
     description: "Wins, blockers and next week's priorities.",
     propertyTemplateId: null,
-    buildMarkdown: (at) => `# Weekly review — ${isoWeekStamp(at)}
+    buildMarkdown: (at) => `# Weekly review ${isoWeekStamp(at)}
 
 ## Wins
 

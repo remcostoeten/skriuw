@@ -90,7 +90,7 @@ test("the disclosure names the destination the adapter actually reaches", () => 
   const disclosure = remoteAiDisclosure(provider());
 
   assert.match(disclosure, /api\.groq\.com/);
-  assert.match(disclosure, /leaves this device/);
+  assert.match(disclosure, /leave this device/);
 });
 
 test("key tier is described without ever revealing a key", () => {

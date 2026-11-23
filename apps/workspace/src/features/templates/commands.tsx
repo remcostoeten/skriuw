@@ -23,7 +23,7 @@ export function templateCommands(store: RendererStore): AppCommand[] {
           .then(() =>
             showToast({
               message:
-                "Template saved. Edit this note to update it. Use {{date}} for today’s date.",
+                "Template saved. Edit this note to update the template. Use {{date}} for today's date.",
             }),
           )
           .catch((error: unknown) => showToast({ message: String(error) }));

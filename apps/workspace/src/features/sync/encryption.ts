@@ -46,11 +46,11 @@ export function encryptionDescription(stage: EncryptionStage): string {
     case "unlinked":
       return "Connect this workspace to Skriuw cloud to encrypt what it uploads.";
     case "off":
-      return "Your cloud copy is readable by the sync service. Encrypt it so only your devices can open it.";
+      return "Your cloud copy is readable by the sync service. Encrypt it so that only your devices can open it.";
     case "revealed":
-      return "Write this code down now. It is the only way to open your cloud copy on another device, and it is never shown again.";
+      return "Write this code down now. You need it to open your cloud copy on another device, and it is never shown again.";
     case "on":
-      return "Note titles, bodies, tags, people, and media are sealed before they leave this device.";
+      return "Note titles, bodies, tags, people and media are encrypted before they leave this device.";
     case "locked":
       return "This workspace is encrypted with a key this device does not hold. Enter its recovery code to keep syncing here.";
   }

@@ -1,24 +1,16 @@
 # Mobile builds
 
-The mobile app in `apps/mobile` is built in two places. CI builds unsigned
-artifacts on every relevant change, and [EAS](https://expo.dev/eas) builds the
-signed apps that install on real devices and go to the stores. This page covers
-the EAS side. The product contract is the [mobile app spec](specs/mobile-app.md),
-and the architecture decision is
-[ADR-0048](adr/0048-native-mobile-shell-over-shared-core.md).
+The mobile app in `apps/mobile` is built in two places. CI builds unsigned artifacts on every relevant change, and [EAS](https://expo.dev/eas) builds the signed apps that install on real devices and go to the stores. This page covers the EAS side. The product contract is the [mobile app spec](specs/mobile-app.md), and the architecture decision is [ADR-0048](adr/0048-native-mobile-shell-over-shared-core.md).
 
 ## bin/eas
 
-`./bin/eas` wraps eas-cli. Use it instead of calling `eas` directly: it always
-runs from `apps/mobile`, because eas-cli writes a stray `app.json` into whatever
-directory it runs from. It uses a global `eas` when one is installed and
-`bunx eas-cli@latest` otherwise.
+`./bin/eas` wraps eas-cli. Use it instead of calling `eas` directly. It always runs from `apps/mobile`, because eas-cli writes a stray `app.json` into whatever directory it runs from. It uses a global `eas` when one is installed and `bunx eas-cli@latest` otherwise.
 
 | Command | Does |
 | --- | --- |
 | `./bin/eas login` | Sign in to expo.dev |
 | `./bin/eas whoami` | Show the signed-in Expo account |
-| `./bin/eas build <platform> [profile]` | Cloud build; platform `android`, `ios` or `all`; profile `preview` (default), `development`, `development-simulator` or `production` |
+| `./bin/eas build <platform> [profile]` | Cloud build. The platform is `android`, `ios` or `all`. The profile is `preview` (default), `development`, `development-simulator` or `production` |
 | `./bin/eas builds` | List the ten latest builds |
 | `./bin/eas credentials [platform]` | Manage signing keys and certificates |
 | `./bin/eas device` | Register an iPhone for internal iOS builds |
@@ -36,44 +28,31 @@ The profiles live in `apps/mobile/eas.json`.
 
 | Profile | Output | For |
 | --- | --- | --- |
-| `development` | Debug APK; iOS device build | A development client that loads JavaScript from Metro, installed on your own phones |
+| `development` | Debug APK, iOS device build | A development client that loads JavaScript from Metro, installed on your own phones |
 | `development-simulator` | iOS simulator build | The same client for a simulator, and the iOS pipeline check that needs no Apple team |
-| `preview` | Release APK; internal iOS build | Installing on your own devices |
-| `production` | Play app bundle; App Store build | Store submission |
+| `preview` | Release APK, internal iOS build | Installing on your own devices |
+| `production` | Play app bundle, App Store build | Store submission |
 
-EAS owns the build number (`appVersionSource: "remote"`, and `production`
-auto-increments it). The user-facing version is `expo.version` in
-`apps/mobile/app.json`. It is separate from the desktop `v2-v*` release line, so
-do not point the desktop releaser at it.
+EAS owns the build number (`appVersionSource: "remote"`, and `production` auto-increments it). The user-facing version is `expo.version` in `apps/mobile/app.json`. It is separate from the desktop `v2-v*` release line, so do not point the desktop releaser at it.
 
 ## The Rust core on EAS workers
 
-The app calls the shared Rust core through the `skriuw-core` native module. Its
-compiled libraries and UniFFI bindings are gitignored, and EAS workers have no
-Rust toolchain, so the workers build them before each run.
+The app calls the shared Rust core through the `skriuw-core` native module. Its compiled libraries and UniFFI bindings are gitignored, and EAS workers have no Rust toolchain, so the workers build them before each run.
 
-The `eas-build-pre-install` hook in `apps/mobile/package.json` runs
-`apps/mobile/modules/skriuw-core/scripts/eas-build-pre-install.sh`. The script
-installs rustup, the toolchain pinned in `rust-toolchain.toml`, and the targets
-for the platform in `EAS_BUILD_PLATFORM`. It then runs one of two build scripts:
+The `eas-build-pre-install` hook in `apps/mobile/package.json` runs `apps/mobile/modules/skriuw-core/scripts/eas-build-pre-install.sh`. The script installs rustup, the toolchain pinned in `rust-toolchain.toml`, and the targets for the platform in `EAS_BUILD_PLATFORM`. It then runs one of two build scripts:
 
 - Android: `build-android.sh`, after installing cargo-ndk.
 - iOS: `build-ios.sh`.
 
-It has to be the pre-install hook. On iOS, the post-install hook runs after
-`pod install`, which is too late for the podspec to find the framework and the
-Swift bindings.
+It has to be the pre-install hook. On iOS, the post-install hook runs after `pod install`, which is too late for the podspec to find the framework and the Swift bindings.
 
-A `.easignore` cannot ship the prebuilt libraries instead. eas-cli reads it only
-from the Git root, where it would replace every `.gitignore` in the monorepo.
+A `.easignore` cannot ship the prebuilt libraries instead. eas-cli reads it only from the Git root, where it would replace every `.gitignore` in the monorepo.
 
 Compiling the core adds several minutes to every EAS build.
 
 ## First build
 
-The first build per platform must run interactively. EAS needs to create and
-store the signing credentials, and CI builds run with `--non-interactive`, so
-they cannot do it.
+The first build per platform must run interactively. EAS needs to create and store the signing credentials, and CI builds run with `--non-interactive`, so they cannot do it.
 
 ```bash
 ./bin/eas login
@@ -85,75 +64,34 @@ Once the credentials exist, builds can run unattended.
 
 ## Testing on an iPhone
 
-iOS cannot be built on Linux, so the phone runs a development client that EAS
-builds, and Metro on this machine serves the JavaScript. A native change (a
-new SDK, a native module, a config plugin) needs a new client; everything else
-is a reload.
+iOS cannot be built on Linux, so the phone runs a development client that EAS builds, and Metro on your machine serves the JavaScript. A native change (a new SDK, a native module, a config plugin) needs a new client. Every other change needs only a reload.
 
-1. Join the Apple Developer Program. Ad hoc distribution, which is what
-   installs a build outside the App Store, needs a team; a free Apple ID
-   cannot sign for a device through EAS. No team is linked yet:
-   `./bin/eas device` answers "No Apple teams found".
-2. Register the phone with `./bin/eas device`. It prints a link; open it on
-   the iPhone and install the profile, which records the UDID with Apple.
-3. Build the client with `./bin/eas build ios development`. The first run is
-   interactive: it signs in to the team, creates the ad hoc provisioning
-   profile for the registered phones and stores it on EAS. Later runs are
-   unattended.
-4. Install it from the build page: the QR code the command prints, or the
-   link from `./bin/eas builds`, opened on the phone.
-5. Serve the JavaScript: `bun run editor:page` once from `apps/mobile`, then
-   `bun run mobile` from the repository root. Scan the QR code from the
-   development client with the phone on the same network, or start Metro
-   with `./bin/dev mobile --tunnel` when it is not.
+1. Join the Apple Developer Program. Ad hoc distribution, which installs a build outside the App Store, needs a team. A free Apple ID cannot sign for a device through EAS. No team is linked yet, so `./bin/eas device` answers "No Apple teams found".
+2. Register the phone with `./bin/eas device`. It prints a link. Open it on the iPhone and install the profile, which records the UDID with Apple.
+3. Build the client with `./bin/eas build ios development`. The first run is interactive: it signs in to the team, creates the ad hoc provisioning profile for the registered phones and stores it on EAS. Later runs are unattended.
+4. Install it from the build page, using the QR code the command prints or the link from `./bin/eas builds`, opened on the phone.
+5. Serve the JavaScript: run `bun run editor:page` once from `apps/mobile`, then `bun run mobile` from the repository root. Scan the QR code from the development client with the phone on the same network. When the phone is on another network, start Metro with `./bin/dev mobile --tunnel`.
 
-Without a team, `./bin/eas build ios development-simulator` still proves the
-iOS half of the pipeline: the Rust core, the Swift module and the pods compile
-on a macOS worker and produce a simulator app. The first such build on SDK 58
-is `3a73aeb1` (2026-10-30, 11 minutes), listed by `./bin/eas builds`.
+Without a team, `./bin/eas build ios development-simulator` still proves the iOS half of the pipeline. The Rust core, the Swift module and the pods compile on a macOS worker and produce a simulator app. The first such build on SDK 58 is `3a73aeb1` (2026-10-30, 11 minutes), listed by `./bin/eas builds`.
 
 ## Without an Apple team: sideloading
 
-A free Apple ID can sign an app for personal use: the signature lasts 7 days
-and three such apps can be installed at once. Apple does that signing in
-Xcode, so from Linux the build and the signing are split:
+A free Apple ID can sign an app for personal use. The signature lasts 7 days, and three such apps can be installed at once. Apple does that signing in Xcode, so from Linux the build and the signing are split:
 
-1. Get the unsigned `.ipa`. The `ios-device-unsigned` job in `mobile-ci.yml`
-   builds a release app for a real iPhone with code signing turned off and
-   uploads it as the `skriuw-ios-unsigned-ipa` artifact. The JavaScript and
-   the editor page are embedded, so the app runs without Metro. Every build
-   also replaces `skriuw-ios-unsigned.ipa` on the `mobile-ipa-latest`
-   prerelease. `./bin/ipa` fetches it into
-   `~/sideload-tools/skriuw-ios-unsigned/` (override with `SKRIUW_IPA_DIR`):
-   - `./bin/ipa latest` downloads it from the prerelease, or from the newest
-     run that has one when the prerelease does not exist.
-   - `./bin/ipa build [ref]` runs the workflow with `targets=ipa` on a branch
-     (default: the current one), waits for the device build and downloads its
-     `.ipa`. The branch must be pushed.
+1. Get the unsigned `.ipa`. The `ios-device-unsigned` job in `mobile-ci.yml` builds a release app for a real iPhone with code signing turned off and uploads it as the `skriuw-ios-unsigned-ipa` artifact. The JavaScript and the editor page are embedded, so the app runs without Metro. Every build also replaces `skriuw-ios-unsigned.ipa` on the `mobile-ipa-latest` prerelease. `./bin/ipa` fetches it into `~/sideload-tools/skriuw-ios-unsigned/` (override with `SKRIUW_IPA_DIR`):
+   - `./bin/ipa latest` downloads it from the prerelease, or from the newest run that has one when the prerelease does not exist.
+   - `./bin/ipa build [ref]` runs the workflow with `targets=ipa` on a branch (default: the current one), waits for the device build and downloads its `.ipa`. The branch must be pushed.
    - `./bin/ipa run <run-id>` downloads it from a specific run.
 
-   A push to `daddy` rebuilds the prerelease only when it changes a native
-   path (see [CI](#ci)), so after a JavaScript-only change the prerelease
-   trails `daddy` until the next native change or `./bin/ipa build`.
-2. Sign and install the `.ipa` with your Apple ID from Linux with
-   [iloader](https://iloader.app): connect the iPhone over USB, trust the
-   computer, sign in, pick the device and install the `.ipa`. `usbmuxd` has
-   to be installed for the phone to be detected. Installing over an existing
-   copy with the same Apple ID is an update and keeps the workspace.
-3. Re-sign before the 7 days run out, or the app stops opening until you do:
-   run iloader again with the same `.ipa` or a newer one.
+   A push to `daddy` rebuilds the prerelease only when it changes a native path (see [CI](#ci)). After a JavaScript-only change, the prerelease trails `daddy` until the next native change or `./bin/ipa build`.
+2. Sign and install the `.ipa` with your Apple ID from Linux with [iloader](https://iloader.app). Connect the iPhone over USB, trust the computer, sign in, pick the device and install the `.ipa`. `usbmuxd` must be installed for the phone to be detected. Installing over an existing copy with the same Apple ID is an update and keeps the workspace.
+3. Re-sign before the 7 days run out, or the app stops opening until you do. Run iloader again with the same `.ipa` or a newer one.
 
-A free Apple ID gets no App Groups, so an iOS share extension would not work
-there; the capture inbox already falls back to the app's own documents
-directory. Face ID, the keychain and locked notes work as in a signed build.
+A free Apple ID gets no App Groups, so an iOS share extension would not work there. The capture inbox already falls back to the app's own documents directory. Face ID, the keychain and locked notes work as in a signed build.
 
 ## CI
 
-`.github/workflows/mobile-ci.yml` runs on every change to `apps/mobile`, the
-shared mobile packages, or `crates/skriuw-mobile`, on a `mobile-v*` tag, and
-on a manual run. A manual run takes a `targets` input: `ipa`, `android` or
-`all` (the default). `./bin/eas ci` runs `all` and `./bin/ipa build` runs
-`ipa`.
+`.github/workflows/mobile-ci.yml` runs on every change to `apps/mobile`, the shared mobile packages, or `crates/skriuw-mobile`, on a `mobile-v*` tag, and on a manual run. A manual run takes a `targets` input: `ipa`, `android` or `all` (the default). `./bin/eas ci` runs `all` and `./bin/ipa build` runs `ipa`.
 
 | Job | Pull request | Push to `daddy` | `mobile-v*` tag | Manual run |
 | --- | --- | --- | --- | --- |
@@ -164,41 +102,20 @@ on a manual run. A manual run takes a `targets` input: `ipa`, `android` or
 | Android preview build | Never | Never | Always | `android`, `all` |
 | EAS Android preview build (signed) | Never | Never | Always | `all` |
 
-The product gate runs `bin/check mobile`, the facade host tests and
-`expo export --platform ios`, so a JavaScript bundling break fails every run,
-including runs that skip the native jobs. A native change touches
-`apps/mobile/modules`, `apps/mobile/src/bridge`, a config plugin under
-`apps/mobile/src`, `crates/skriuw-mobile`, `apps/mobile/package.json`,
-`apps/mobile/app.json`, `bun.lock` or a `mobile-*.yml` workflow.
+The product gate runs `bin/check mobile`, the facade host tests and `expo export --platform ios`, so a JavaScript bundling break fails every run, including runs that skip the native jobs. A native change touches `apps/mobile/modules`, `apps/mobile/src/bridge`, a config plugin under `apps/mobile/src`, `crates/skriuw-mobile`, `apps/mobile/package.json`, `apps/mobile/app.json`, `bun.lock` or a `mobile-*.yml` workflow.
 
-There is no simulator build. The unsigned device build compiles the same
-code, and no simulator is available to run the result. After a successful
-device build, the `ipa-release` job replaces the `.ipa` on the
-`mobile-ipa-latest` prerelease, creating the prerelease if it does not exist.
+There is no simulator build. The unsigned device build compiles the same code, and no simulator is available to run the result. After a successful device build, the `ipa-release` job replaces the `.ipa` on the `mobile-ipa-latest` prerelease, creating the prerelease if it does not exist.
 
-The macOS jobs run on the `macos-26` image with Xcode 26.6 selected. Runs
-that change no Rust restore the compiled core (the xcframework with its Swift
-bindings, and the Android libraries with their Kotlin bindings) from a cache
-keyed on `crates/`, `Cargo.toml`, `Cargo.lock`, `rust-toolchain.toml` and the
-build script. The device build compiles pods through ccache, the Android jobs
-use Gradle's build cache, and the emulator boots from a cached AVD snapshot.
+The macOS jobs run on the `macos-26` image with Xcode 26.6 selected. Runs that change no Rust restore the compiled core (the xcframework with its Swift bindings, and the Android libraries with their Kotlin bindings) from a cache keyed on `crates/`, `Cargo.toml`, `Cargo.lock`, `rust-toolchain.toml` and the build script. The device build compiles pods through ccache, the Android jobs use Gradle's build cache, and the emulator boots from a cached AVD snapshot.
 
-The signed `eas-android` job builds Android only: a signed iOS build needs an
-Apple Developer team, which this project does not have. It runs only on a
-`mobile-v*` tag or a manual `all` run, so pull requests do not spend EAS build
-minutes. The `eas-preflight` job runs first and needs three things:
+The signed `eas-android` job builds Android only, because a signed iOS build needs an Apple Developer team, which this project does not have. It runs only on a `mobile-v*` tag or a manual `all` run, so pull requests do not spend EAS build minutes. The `eas-preflight` job runs first and needs three things:
 
 - The `EXPO_TOKEN` repository secret.
 - `expo.extra.eas.projectId` in `apps/mobile/app.json`.
 - The `eas-build-pre-install` hook in `apps/mobile/package.json`.
 
-If one is missing, it records the reason as a warning and the EAS job is skipped
-rather than marked green.
+If one is missing, the job records the reason as a warning and the EAS job is skipped rather than marked green.
 
 ## Store submission
 
-Submission is not live yet. The remaining accounts, credentials, assets, and
-manual checks are tracked in the
-[submission checklist](../tools/packaging/mobile/submission-checklist.md).
-Store metadata lives in
-[`tools/packaging/mobile`](../tools/packaging/mobile).
+Submission is not live yet. The remaining accounts, credentials, assets, and manual checks are tracked in the [submission checklist](../tools/packaging/mobile/submission-checklist.md). Store metadata lives in [`tools/packaging/mobile`](../tools/packaging/mobile).

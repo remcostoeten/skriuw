@@ -20,9 +20,9 @@ export default function RouteError({ error, retry }: Props) {
   return (
     <StatusPage
       code="500"
-      label="something broke"
+      label="site error"
       title="This page failed to render."
-      lede="The site hit an unexpected error. Retrying usually fixes it. Nothing here touches your notes, so your workspace is unaffected."
+      lede="The site hit an error before it could show this page. Try again, or go back to the homepage. Your notes are stored by the app, not by this site, so this error doesn't affect them."
       actions={
         <>
           <button type="button" className={primaryButton} onClick={() => retry()}>

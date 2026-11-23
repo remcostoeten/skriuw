@@ -21,6 +21,7 @@ import {
   vimCursorBlinks,
   vimCursorStyle,
   usesVimMode,
+  showsEditorLineNumbers,
   usesTypewriterScrolling,
   dimsFocusParagraphs,
 } from "@/features/settings/settings-model";
@@ -49,6 +50,8 @@ test("default settings project every editable field", () => {
     editorPlaceholder: "Start writing...",
     editorDefaultRawMode: false,
     blockDragHandle: true,
+    editorLineNumbers: false,
+    showLineNumbers: true,
     vimMode: false,
     vimCursorStyle: "block",
     vimCursorBlink: false,
@@ -96,6 +99,17 @@ test("typewriter scrolling and focus dimming stay off unless explicitly true", (
   });
   assert.equal(enabled.typewriterScrolling, true);
   assert.equal(enabled.focusDimParagraphs, true);
+});
+
+test("rendered editor line numbers stay off unless explicitly true", () => {
+  assert.equal(showsEditorLineNumbers(DEFAULT_WORKSPACE_SETTINGS), false);
+  assert.equal(
+    showsEditorLineNumbers({ ...DEFAULT_WORKSPACE_SETTINGS, editorLineNumbers: "on" }),
+    false,
+  );
+  const enabled = projectSettings({ ...DEFAULT_WORKSPACE_SETTINGS, editorLineNumbers: true });
+  assert.equal(enabled.editorLineNumbers, true);
+  assert.equal(enabled.showLineNumbers, true);
 });
 
 test("Vim cursor preferences are neutral, solid, and validated", () => {

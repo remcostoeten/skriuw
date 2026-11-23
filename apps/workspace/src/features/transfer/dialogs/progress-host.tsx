@@ -11,7 +11,7 @@ const labels: Record<ImportProgress["phase"], string> = {
   reading: "Reading export",
   parsing: "Planning import",
   images: "Importing images",
-  committing: "Committing workspace changes",
+  committing: "Saving workspace changes",
 };
 
 export function ImportProgressHost() {

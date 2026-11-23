@@ -257,7 +257,7 @@ function ModelSwitcherBody({ store, openAiSettings }: BodyProps) {
         )}
         {nothingAvailable && (
           <div className="border-t border-border/60 px-3 py-3 text-[12px] text-muted-foreground">
-            Nothing is ready to run yet — install Ollama or add a provider key.{" "}
+            No model is ready. Install Ollama or add a provider key.{" "}
             <button
               type="button"
               className="cursor-pointer border-none bg-transparent p-0 text-[12px] text-foreground underline underline-offset-2"

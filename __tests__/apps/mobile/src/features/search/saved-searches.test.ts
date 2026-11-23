@@ -63,10 +63,10 @@ test("saving a query that is already saved writes nothing", async () => {
 
 test("an empty or oversized query is refused with the bound it broke", async () => {
   const session = sessionOf();
-  await assert.rejects(setSearchSaved(session, "   ", true), /1–512 characters/);
+  await assert.rejects(setSearchSaved(session, "   ", true), /1-512 characters/);
   await assert.rejects(
     setSearchSaved(session, "x".repeat(SAVED_SEARCH_MAX_LENGTH + 1), true),
-    /1–512 characters/,
+    /1-512 characters/,
   );
 });
 

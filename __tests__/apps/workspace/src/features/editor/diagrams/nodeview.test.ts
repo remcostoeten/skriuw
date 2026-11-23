@@ -20,7 +20,7 @@ test("diagram geometry bounds the canvas and routes connectors between nodes", (
 test("edge summaries expose the visual relationship as text", () => {
   const model = createDefaultDiagram();
   model.edges[0] = { ...model.edges[0]!, label: "then" };
-  assert.equal(diagramEdgeSummary(model, model.edges[0]!), "Start to Shape the idea: then");
+  assert.equal(diagramEdgeSummary(model, model.edges[0]!), "Start to Draft: then");
 });
 
 test("drag work selects only connectors incident to the moved node", () => {

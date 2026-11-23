@@ -4,6 +4,7 @@
 @import "../../base.css";
 @import "../editor/editor.css";
 @import "../editor/block-gutter.css";
+@import "../editor/line-numbers/gutter.css";
 @import "../editor/suggestion.css";
 @import "../ai/ai-surfaces.css";
 @import "../../shell/compact/mobile.css";

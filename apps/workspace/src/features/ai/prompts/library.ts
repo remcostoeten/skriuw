@@ -194,7 +194,7 @@ export function promptDraftError(draft: PromptDraft): string | null {
   }
   const systemBytes = byteLength(draft.systemPrompt);
   if (systemBytes > MAX_PROMPT_SYSTEM_BYTES) {
-    return `The system prompt is ${systemBytes.toLocaleString()} bytes; the limit is ${MAX_PROMPT_SYSTEM_BYTES.toLocaleString()} bytes.`;
+    return `The system prompt is ${systemBytes.toLocaleString()} bytes and the limit is ${MAX_PROMPT_SYSTEM_BYTES.toLocaleString()} bytes.`;
   }
   const temperature = parseTemperatureMillis(draft.temperature);
   if (

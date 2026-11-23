@@ -50,7 +50,7 @@ export function remoteAiCanComplete(provider: RemoteAiProviderState): boolean {
  * host the renderer would have to keep in step by hand.
  */
 export function remoteAiDisclosure(provider: RemoteAiProviderState): string {
-  return `The text you send to ${provider.label} — your prompt and the note content you include — leaves this device for ${provider.destination}, authenticated with the key you store here. ${provider.label} decides how long it retains that text. Skriuw sends nothing to this provider until you accept.`;
+  return `Your prompt and the note content you include leave this device for ${provider.destination}, authenticated with the key you store here. ${provider.label} decides how long it retains that text. Skriuw sends nothing to this provider until you accept.`;
 }
 
 export function remoteAiConsentStatus(provider: RemoteAiProviderState): string {

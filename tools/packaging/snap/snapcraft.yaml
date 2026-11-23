@@ -11,10 +11,11 @@ website: https://skriuw.com
 source-code: https://github.com/remcostoeten/skriuw
 issues: https://github.com/remcostoeten/skriuw/issues
 contact: https://github.com/remcostoeten/skriuw/issues
-summary: A quiet writing workspace for notes, journaling, sharing, and planning
+summary: A local-first notes app for writing, journaling, and linking notes together
 description: |
-  Skriuw is a local-first writing workspace for notes, journaling, sharing,
-  and planning. This snap repackages the official .deb release.
+  Skriuw is a local-first notes app for writing, journaling, and linking notes
+  together. It stores notes in SQLite on your machine and needs no account. This
+  snap repackages the official .deb release.
 grade: stable
 confinement: strict
 license: MIT

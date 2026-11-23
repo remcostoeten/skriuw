@@ -25,10 +25,10 @@ Every value is a pure function of the spec:
 - Timestamps: base `1_753_000_000_000` ms, advancing 1,000 ms per create operation.
 - Titles, Markdown, and structured document JSON are templated from shape and index.
 - Settings are the version-1 defaults tagged with a `fixtureName` extension holding the fixture name.
-- Placement is always semantic `NodePlacement::last`; the storage adapter allocates every durable rank per ADR-0010.
+- Placement is always semantic `NodePlacement::last`, and the storage adapter allocates every durable rank per ADR-0010.
 - The final operations set the settings document and activate note 1.
 
-`fixture_digest` hashes the serialized operation sequence; the six canonical digests are pinned in the default test suite. Intentional generator changes must update those constants.
+`fixture_digest` hashes the serialized operation sequence. The six canonical digests are pinned in the default test suite. Intentional generator changes must update those constants.
 
 ## Search tokens
 
@@ -45,7 +45,7 @@ Each note's Markdown and document JSON embed predictable FTS terms:
 
 ## Materialization
 
-Nothing generated is committed. Materialize into SQLite by replaying `operation_batches(512)` through `WorkspaceStorage::apply_operations`; the default suite proves the flow with a 120-note mixed fixture against an in-memory database, validates the exported archive, and checks integrity.
+Nothing generated is committed. Materialize into SQLite by replaying `operation_batches(512)` through `WorkspaceStorage::apply_operations`. The default suite proves the flow with a 120-note mixed fixture against an in-memory database, validates the exported archive, and checks integrity.
 
 The 5,000-note manual materialization is ignored by default and asserts no timing budget:
 
@@ -57,7 +57,7 @@ One release-mode run on the development machine materialized the 5,018 `mixed-50
 
 ## Browser tree projection
 
-The `export_tree_projection` example writes one JSON file per canonical fixture for browser tree workloads. Each file contains the fixture metadata, the pinned operations digest, the active note ID, and every node as `{id, parentId, kind, title}` in creation order, which equals sibling order because every fixture placement is semantic `last`. The example generates each projection twice and asserts byte equality before writing; nothing generated is committed.
+The `export_tree_projection` example writes one JSON file per canonical fixture for browser tree workloads. Each file contains the fixture metadata, the pinned operations digest, the active note ID, and every node as `{id, parentId, kind, title}` in creation order, which equals sibling order because every fixture placement is semantic `last`. The example generates each projection twice and asserts byte equality before writing. Nothing generated is committed.
 
 ```bash
 cargo run --release --locked -p skriuw-fixtures --example export_tree_projection -- apps/workspace/harnesses/renderer-store/public/fixtures
@@ -84,9 +84,9 @@ cargo test -p skriuw-fixtures --release --locked benchmarks_bootstrap_workloads 
 cargo test -p skriuw-fixtures --release --locked benchmarks_history_workloads -- --ignored --nocapture
 ```
 
-- Import measures `SqliteWorkspace::open` and `replace_from_archive` separately against a fresh file-backed database; the source archive is materialized, verified, and exported before timing.
-- Bootstrap measures `open` and `bootstrap` separately against one fully materialized file-backed database; page-cache state is warm and uncontrolled.
-- History measures the outbox-to-Git drain and the validated Git-to-SQLite cache rebuild as two separate numbers; every count and integrity assertion runs outside the timed intervals, and historical Markdown stays lazy.
+- Import measures `SqliteWorkspace::open` and `replace_from_archive` separately against a fresh file-backed database. The source archive is materialized, verified, and exported before timing.
+- Bootstrap measures `open` and `bootstrap` separately against one fully materialized file-backed database. Page-cache state is warm and uncontrolled.
+- History measures the outbox-to-Git drain and the validated Git-to-SQLite cache rebuild as two separate numbers. Every count and integrity assertion runs outside the timed intervals, and historical Markdown stays lazy.
 
 Raw samples, medians, environment metadata, and limitations are recorded in [benchmarks/2026-07-21-backend-workloads.md](benchmarks/2026-07-21-backend-workloads.md). No timing assertion exists in any test.
 

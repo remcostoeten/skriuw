@@ -145,7 +145,7 @@ function parse(tree: MarkdownTree): ImportBundle {
   }
   if (encrypted > 0) {
     warnings.push({
-      message: `Skipped ${encrypted} encrypted item${encrypted === 1 ? "" : "s"}; export a decrypted backup to import them`,
+      message: `Skipped ${encrypted} encrypted item${encrypted === 1 ? "" : "s"}. Export a decrypted backup to import them.`,
       severity: "error",
     });
   }

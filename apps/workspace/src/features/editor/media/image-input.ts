@@ -280,7 +280,7 @@ export function describeMediaFailure(error: unknown): { title: string; message: 
   const detail = error instanceof Error ? `${error.name}: ${error.message}` : String(error);
   return {
     title: "Couldn’t save media",
-    message: `Something went wrong saving this file. (${detail})`,
+    message: `This file could not be saved. (${detail})`,
   };
 }
 

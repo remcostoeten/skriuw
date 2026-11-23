@@ -7,13 +7,13 @@ import { appUrl } from "@/data/content";
 export const metadata: Metadata = {
   title: "Markdown Notes App",
   description:
-    "Write in a structured editor or drop into raw Markdown. Skriuw keeps readable source, portable exports, and wikilinks that survive renames.",
+    "Skriuw is a Markdown notes app with a rich text editor and a raw Markdown view. Notes export as plain Markdown, and wikilinks keep working after a note is renamed.",
   alternates: { canonical: "/markdown-notes/" },
   openGraph: {
     siteName: "Skriuw",
-    title: "Markdown when you want it. A real editor when you don't.",
+    title: "Markdown notes with a rich text editor and a raw view",
     description:
-      "Markdown input rules while you type, raw source when precision matters, and exports that stay readable elsewhere.",
+      "Markdown shortcuts turn into formatting as you type, the raw view shows the source, and exported files open in other editors.",
     url: "https://skriuw.com/markdown-notes/",
     images: [socialImage],
   },
@@ -37,41 +37,41 @@ let notes = local_first();
 const surface = [
   {
     tag: "Blocks and marks",
-    title: "Structure without ceremony",
-    body: "Six heading levels, quotes, tables, fenced code, bullets, numbered and collapsible lists, checklists, alignment, underline, and restrained highlights.",
+    title: "Formatting options",
+    body: "Six heading levels, quotes, tables, fenced code, bullet, numbered and collapsible lists, checklists, alignment, underline and highlight colors.",
   },
   {
     tag: "Paste",
-    title: "Arrives already rendered",
-    body: "Paste Markdown and it arrives rendered. Paste rich HTML and it keeps useful formatting. Raw mode leaves source untouched.",
+    title: "Pasted Markdown renders",
+    body: "Pasted Markdown appears as headings, lists, tables and code. Rich HTML from a web page pastes as formatted text. Raw mode keeps pasted text as source.",
   },
   {
     tag: "Links and references",
-    title: "Connected by stable identity",
-    body: "Wikilinks export as [[title]]. Tags, people, backlinks, and note relationships stay connected by stable identity inside the workspace.",
+    title: "Links survive renames",
+    body: "Wikilinks export as [[title]]. Inside the workspace, tags, people, backlinks and note links are stored by ID, so renaming a note doesn't break them.",
   },
   {
     tag: "Large notes",
-    title: "Thousands of blocks stay responsive",
-    body: "A bounded editor window keeps thousands of blocks responsive while search, copy, undo, and accessibility still cover the complete document.",
+    title: "Notes with thousands of blocks",
+    body: "The editor renders a window of 192 blocks. Select all, copy, search, undo and accessibility navigation still cover the whole document.",
   },
 ];
 
 const portability = [
   {
     term: "Export",
-    title: "Readable files and folders",
-    body: "Export one note or the full workspace with images kept beside the Markdown.",
+    title: "Plain Markdown files",
+    body: "Export one note or the whole workspace as Markdown, with images in an images/ directory.",
   },
   {
     term: "Links",
-    title: "Labels follow renames",
-    body: "Stable identities keep internal links intact; exported labels refresh when titles change.",
+    title: "Link labels update after renames",
+    body: "Internal links point to note IDs, so they keep working after a rename. Exported labels change to the new title.",
   },
   {
     term: "Source",
-    title: "Ambiguity stays visible",
-    body: "Unresolved links and syntax remain source text instead of becoming a guessed conversion.",
+    title: "Ambiguous links stay as source",
+    body: "Ambiguous links and unsupported syntax stay as source text instead of being converted by guess.",
   },
 ];
 
@@ -95,21 +95,21 @@ export default function MarkdownNotesPage() {
         index="03"
         label="markdown"
         marks={["Readable source", "Structured editor", "Portable archive"]}
-        eyebrow="Rich when writing · raw when precision matters"
-        title="Markdown when you want it. A real editor when you don't."
-        lede="Type headings, lists, code, and links naturally. Drop into the source when exact syntax matters. Both views edit the same note."
+        eyebrow="Rich text editor and raw Markdown view"
+        title="Write in rich text or raw Markdown."
+        lede="Markdown shortcuts like # and - turn into headings and lists as you type. The raw view shows the Markdown source of the same note."
         actions={[
           { label: "Try the Markdown editor", href: appUrl },
-          { label: "Bring existing Markdown", href: "/import/" },
+          { label: "Import existing Markdown", href: "/import/" },
         ]}
       />
 
       <PageSection
         index="01"
         label="One note, two views"
-        lead="The source stays close"
-        trail="without sitting between you and every sentence."
-        intro="Markdown input rules turn familiar punctuation into structure as you type. Raw mode exposes the underlying text with line numbers, position, counts, and synchronized scrolling."
+        lead="Edit the rendered note"
+        trail="or its Markdown source."
+        intro="Markdown shortcuts turn into structure as you type. The raw view shows the Markdown source with optional line numbers, word count, cursor row and column, and jump-to-row."
       >
         <div className="grid divide-y divide-dashed divide-line rounded-[10px] border border-line bg-hy-card lg:grid-cols-2 lg:divide-x lg:divide-y-0">
           <div className="min-w-0 p-6">
@@ -159,9 +159,9 @@ export default function MarkdownNotesPage() {
 
       <PageSection
         index="02"
-        label="Writing surface"
-        lead="Enough structure for serious notes."
-        trail="No schema ceremony before the first line."
+        label="Editor features"
+        lead="Headings, lists, tables and code"
+        trail="work as you type."
       >
         <CardGrid columns={4} items={surface} />
       </PageSection>
@@ -169,15 +169,16 @@ export default function MarkdownNotesPage() {
       <PageSection
         index="03"
         label="Portability"
-        lead="Unsupported does not mean discarded."
-        intro="When Skriuw cannot represent Markdown safely in the structured editor, it preserves the exact source in raw mode. Frontmatter and footnotes remain source text until they have a lossless structured representation."
+        lead="Markdown Skriuw can't convert"
+        trail="stays as source text."
+        intro="When the structured editor can't represent some Markdown safely, Skriuw keeps the exact source in raw mode. Frontmatter and footnotes stay as source text until the structured editor supports them."
       >
         <TermGrid terms={portability} />
       </PageSection>
 
       <PageCta
-        title="Write the note first. Inspect the syntax when it earns your attention."
-        body="The full editor runs locally in your browser, with no account required."
+        title="Try the editor without an account."
+        body="The full editor runs locally in your browser."
         actions={[
           { label: "Open the editor", href: appUrl },
           { label: "Install for desktop", href: "/download/" },

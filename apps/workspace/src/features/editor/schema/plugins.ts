@@ -88,11 +88,11 @@ function createPlaceholderPlugin(): Plugin {
 /**
  * Enter inside ordinary prose adds a line break to the current paragraph rather
  * than starting a new one, so the note's Markdown gains one line per visible
- * line instead of a blank-line-separated block. Enter on the empty line that
- * follows a break trades that break for a real paragraph split, which keeps two
- * consecutive breaks — the one shape Markdown cannot round-trip cleanly — out of
- * the document. Structural blocks (lists, headings, code, tables) keep their own
- * Enter behavior and fall through to the base keymap.
+ * line instead of a blank-line-separated block. Every press adds one full
+ * line, including on an empty line, because paragraphs carry no margin and a
+ * paragraph split would not move the caret. Structural blocks (lists, headings,
+ * code, tables) keep their own Enter behavior and fall through to the base
+ * keymap.
  */
 function breakOrSplitParagraph(
   state: EditorState,
@@ -105,16 +105,6 @@ function breakOrSplitParagraph(
   if ($from.parent.type !== productSchema.nodes.paragraph || !$from.sameParent($to)) return false;
   const container = $from.node($from.depth - 1).type.name;
   if (container !== "doc" && container !== "blockquote") return false;
-
-  const atParagraphEnd = $to.parentOffset === $to.parent.content.size;
-  if (selection.empty && atParagraphEnd && $from.nodeBefore?.type === hardBreak) {
-    if (dispatch) {
-      const transaction = state.tr.delete($from.pos - 1, $from.pos);
-      transaction.split($from.pos - 1);
-      dispatch(transaction.scrollIntoView());
-    }
-    return true;
-  }
 
   if (dispatch) {
     dispatch(state.tr.replaceSelectionWith(hardBreak.create()).scrollIntoView());
@@ -252,6 +242,7 @@ export function createProductPlugins(): Plugin[] {
       Escape: chainCommands(exitMermaidSource, exitMathBlock),
       Enter: chainCommands(
         enterMermaidSource,
+        newlineInCode,
         editSelectedInlineMath,
         mathBlockFromDollarFence,
         splitTaskItem(checkItem),
@@ -260,10 +251,10 @@ export function createProductPlugins(): Plugin[] {
         breakOrSplitParagraph,
       ),
       "Shift-Enter": chainCommands(
+        newlineInCode,
         splitTaskItem(checkItem),
         splitListItem(toggleItem, { open: true }),
         splitListItem(listItem),
-        newlineInCode,
         createParagraphNear,
         liftEmptyBlock,
         splitBlock,

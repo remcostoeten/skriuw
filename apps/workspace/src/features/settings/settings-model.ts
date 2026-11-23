@@ -57,6 +57,7 @@ export const DEFAULT_WORKSPACE_SETTINGS: WorkspaceSettings = {
   editorPlaceholder: "Start writing...",
   editorDefaultRawMode: false,
   blockDragHandle: true,
+  editorLineNumbers: false,
   vimMode: false,
   vimCursorStyle: "block",
   vimCursorBlink: false,
@@ -86,6 +87,8 @@ export type SettingsViewModel = {
   editorPlaceholder: string;
   editorDefaultRawMode: boolean;
   blockDragHandle: boolean;
+  editorLineNumbers: boolean;
+  showLineNumbers: boolean;
   vimMode: boolean;
   vimCursorStyle: VimCursorStyle;
   vimCursorBlink: boolean;
@@ -134,6 +137,8 @@ export function projectSettings(settings: WorkspaceSettings): SettingsViewModel 
     editorPlaceholder: settings.editorPlaceholder,
     editorDefaultRawMode: settings.editorDefaultRawMode === true,
     blockDragHandle: usesBlockDragHandle(settings),
+    editorLineNumbers: showsEditorLineNumbers(settings),
+    showLineNumbers: settings.showLineNumbers === true,
     vimMode: usesVimMode(settings),
     vimCursorStyle: vimCursorStyle(settings),
     vimCursorBlink: vimCursorBlinks(settings),
@@ -216,6 +221,19 @@ export function usesTypewriterScrolling(settings: WorkspaceSettings): boolean {
  */
 export function dimsFocusParagraphs(settings: WorkspaceSettings): boolean {
   return settings["focusDimParagraphs"] === true;
+}
+
+/**
+ * @name showsEditorLineNumbers
+ * @description Whether the rendered editor numbers its lines in the left
+ * margin. Off unless explicitly turned on. The raw Markdown editor has its own
+ * `showLineNumbers` setting.
+ *
+ * @example
+ * createLineNumbersPlugin({ enabled: () => showsEditorLineNumbers(settings), firstNumber });
+ */
+export function showsEditorLineNumbers(settings: WorkspaceSettings): boolean {
+  return settings["editorLineNumbers"] === true;
 }
 
 export function vimCursorStyle(settings: WorkspaceSettings): VimCursorStyle {

@@ -38,8 +38,8 @@ export function blockedItemLabel(
   item: Pick<BlockedSyncOperation, "operationType" | "targetTitle" | "targetId">,
 ): string {
   const operation = OPERATION_LABELS[item.operationType] ?? item.operationType.replaceAll("_", " ");
-  if (item.targetTitle) return `${operation} · ${item.targetTitle}`;
-  if (item.targetId) return `${operation} · ${item.targetId}`;
+  if (item.targetTitle) return `${operation}: ${item.targetTitle}`;
+  if (item.targetId) return `${operation}: ${item.targetId}`;
   return operation;
 }
 
@@ -47,7 +47,7 @@ export function blockedItemLabel(
 export function blockedCauseText(reasonCode: string): string {
   switch (reasonCode) {
     case "asset_content_missing":
-      return "The image bytes behind this change are not on this device yet. They upload automatically once the image arrives, or you can retry now.";
+      return "The image for this change is not on this device yet. It uploads automatically when the image arrives, or you can retry now.";
     case "operation_too_large":
       return "This change is too large for the current sync protocol, so it can only be discarded.";
     case "unsupported_operation":
@@ -68,23 +68,23 @@ export function blockedStateText(reason: string): string {
     case "authorization_denied":
       return "The cloud denied this workspace access. Check the blocked changes below, then retry sync.";
     case "push_conflict":
-      return "The cloud saw a conflicting upload from another device. Retry sync to reconcile.";
+      return "The cloud received a conflicting upload from another device. Retry sync to reconcile.";
     case "protocol_mismatch":
-      return "This app version and the cloud speak different sync protocols. Update Skriuw, then retry sync.";
+      return "This app version and the cloud use different sync protocols. Update Skriuw, then retry sync.";
     case "rejected_acknowledgement":
-      return "The cloud rejected the last upload receipt. Retry sync; blocked changes are listed below.";
+      return "The cloud rejected the last upload receipt. Retry sync. Blocked changes are listed below.";
     case "rejected_checkpoint":
-      return "The cloud rejected the workspace checkpoint. Retry sync; blocked changes are listed below.";
+      return "The cloud rejected the workspace checkpoint. Retry sync. Blocked changes are listed below.";
     case "storage_failure":
-      return "The local sync queue hit a storage failure. Retry sync; if this persists, check the Data section.";
+      return "The local sync queue hit a storage failure. Retry sync. If it keeps failing, check the Data section.";
     case "encryption_key_required":
       return "This workspace is encrypted and this device has no key. Enter its recovery code in the encryption settings above.";
     case "encryption_downgrade_refused":
-      return "The cloud returned unencrypted content for this encrypted workspace, and it was refused. Nothing was applied; contact support if this persists.";
+      return "The cloud returned unencrypted content for this encrypted workspace, and Skriuw refused it. Nothing was applied. Contact support if this keeps happening.";
     case "sealed_content_unreadable":
-      return "The encrypted cloud copy could not be opened with this device's recovery code. Check the code, or the cloud copy was altered.";
+      return "The encrypted cloud copy could not be opened with this device's recovery code. Check the code. If it is correct, the cloud copy may have been altered.";
     case "server_too_old":
-      return "This Skriuw cloud server is older than this app and cannot confirm this workspace's encryption key. Nothing was uploaded; sync resumes once the server is updated.";
+      return "The Skriuw cloud server is older than this app and cannot confirm this workspace's encryption key. Nothing was uploaded. Sync resumes when the server is updated.";
     default:
       return "Sync stopped because the server rejected a local change. Blocked changes are listed below.";
   }

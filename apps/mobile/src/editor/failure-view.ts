@@ -21,12 +21,12 @@ export type EditorFailureView = {
 };
 
 const SUMMARIES: Record<EditorHostFailureCode, string> = {
-  "protocol-version": "The editor speaks a different protocol version",
-  "invalid-message": "The editor refused a message from the app",
+  "protocol-version": "The editor uses a different protocol version than the app",
+  "invalid-message": "The editor rejected a message from the app",
   "change-unacknowledged": "An edit was not acknowledged in time",
   "request-unanswered": "The editor is waiting on the app",
   "runtime-error": "The editor stopped responding",
-  "webview-gone": "The system reclaimed the editor",
+  "webview-gone": "The system closed the editor",
   "bundle-missing": "This build has no editor page",
 };
 
