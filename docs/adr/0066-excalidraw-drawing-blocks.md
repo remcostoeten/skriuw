@@ -76,5 +76,7 @@ stroke.
   into it there replaces the note. Every device that edits notes with
   drawings needs this build or later. Markdown exports and imports carry the
   fence, which older builds keep as a code block.
-- Agent tools for drawings (create, read, update a drawing over MCP) build on
-  this block once the local MCP server lands.
+- Agents reach drawings over MCP with `list_drawings`, `read_drawing`,
+  `create_drawing` and `update_drawing`. Writes are refused while a drawing
+  editor is open, because the editor holds its own copy of the scene and
+  would overwrite the change on its next commit.

@@ -13,6 +13,7 @@ import {
 import { CheckIcon, DownloadIcon, UploadIcon } from "@/shared/icons/static";
 import { Button } from "@/shared/ui/button";
 import { showToast } from "@/shared/ui/toast";
+import { trackExcalidrawEditor } from "./editor-session";
 import { pickExcalidrawFile, saveExcalidrawFile } from "./files";
 import { loadExcalidraw } from "./library";
 
@@ -77,6 +78,8 @@ export function ExcalidrawEditorOverlay({ source, title, dark, onCommit, onClose
   const oversizeWarnedRef = useRef(false);
   const commitRef = useRef(onCommit);
   commitRef.current = onCommit;
+
+  useEffect(() => trackExcalidrawEditor(), []);
 
   useEffect(() => {
     let cancelled = false;
