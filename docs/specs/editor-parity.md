@@ -37,7 +37,7 @@ Code blocks expose language selection and copy. Tables expose keyboard-accessibl
 
 Collapsible lists use canonical `toggle_list` and `toggle_item` nodes. The first paragraph is the always-visible summary and subsequent blocks are the disclosed content. Expanded items serialize as `- [v] summary`; collapsed items serialize as `- [>] summary`. Nested content uses ordinary Markdown list indentation, so raw mode remains readable and the open state round-trips without HTML execution. Each rendered item exposes a labelled disclosure button and the `Alt+Enter` keyboard action.
 
-Interactive drawings, Mermaid diagrams, and file-tree visualizations require separate measured block specifications. Their stored representation, Markdown degradation, bounded-window cost, history behavior, archive behavior, accessibility fallback, and dependency cost must be accepted before implementation.
+Interactive drawings, Mermaid diagrams, and file-tree visualizations require separate measured block specifications; drawings are specified in [Excalidraw drawings](excalidraw-drawings.md). Their stored representation, Markdown degradation, bounded-window cost, history behavior, archive behavior, accessibility fallback, and dependency cost must be accepted before implementation.
 
 ## Raw Markdown
 

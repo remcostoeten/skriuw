@@ -11,8 +11,12 @@ names, and focus retention from the keyboard.
 `--mermaid-only` inserts, edits, toggles, expands, and theme-switches a
 rendered Mermaid fence.
 
+`--excalidraw-only` inserts an Excalidraw drawing, draws a rectangle in the
+editor, closes it with Escape, saves the `.excalidraw` file, and imports one
+through `/import`.
+
 ```bash
-node apps/workspace/e2e/run.mjs [--provider-import-only | --tasks-only | --personal-only | --journal-only | --mermaid-only]
+node apps/workspace/e2e/run.mjs [--provider-import-only | --tasks-only | --personal-only | --journal-only | --mermaid-only | --excalidraw-only]
 ```
 
 The runner previews on port 4192 and refuses to start when something already

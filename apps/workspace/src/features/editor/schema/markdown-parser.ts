@@ -13,6 +13,8 @@ import {
 import { inlineMathRule, mathBlockRule } from "../math/markdown";
 import { isHighlightColor } from "./attributes";
 import { DATABASE_FENCE_LANGUAGE, databaseFolderFromSource } from "./database";
+import { excalidrawSceneFromFence } from "./excalidraw";
+import { EMPTY_EXCALIDRAW_SCENE_SOURCE, EXCALIDRAW_FENCE_LANGUAGE } from "../excalidraw/scene";
 import { normalizeAutolink } from "./links";
 import { isAnnotationThreadId } from "./marks";
 import type { MediaKind } from "./media";
@@ -263,6 +265,28 @@ if (!hasMarkdownRule(defaultMarkdownParser.tokenizer.core.ruler, "skriuw_databas
   defaultMarkdownParser.tokenizer.core.ruler.push("skriuw_database_fences", convertDatabaseFences);
 }
 
+function convertExcalidrawFences(state: CoreRuleState): boolean {
+  for (const token of state.tokens) {
+    if (token.type !== "fence") continue;
+    const language = String(token.info ?? "")
+      .trim()
+      .toLowerCase();
+    if (language !== EXCALIDRAW_FENCE_LANGUAGE) continue;
+    const scene = excalidrawSceneFromFence(String(token.content ?? ""));
+    if (scene === null) continue;
+    token.type = "skriuw_excalidraw";
+    token.meta = { ...token.meta, excalidrawScene: scene };
+  }
+  return true;
+}
+
+if (!hasMarkdownRule(defaultMarkdownParser.tokenizer.core.ruler, "skriuw_excalidraw_fences")) {
+  defaultMarkdownParser.tokenizer.core.ruler.push(
+    "skriuw_excalidraw_fences",
+    convertExcalidrawFences,
+  );
+}
+
 function bareDomainTokens(state: CoreRuleState, text: string, before: string): MarkdownToken[] {
   const tokens: MarkdownToken[] = [];
   let cursor = 0;
@@ -359,6 +383,10 @@ const productMarkdownParser = new MarkdownParser(productSchema, defaultMarkdownP
   skriuw_database: {
     node: "database_view",
     getAttrs: (tok) => ({ folder: tok.meta?.databaseFolder ?? "" }),
+  },
+  skriuw_excalidraw: {
+    node: "excalidraw",
+    getAttrs: (tok) => ({ scene: tok.meta?.excalidrawScene ?? EMPTY_EXCALIDRAW_SCENE_SOURCE }),
   },
   math_block: { block: "math_block", noCloseToken: true },
   math_inline: {
