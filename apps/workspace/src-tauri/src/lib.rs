@@ -1,3 +1,4 @@
+mod agent_server;
 mod ai;
 mod ai_credentials;
 mod ai_history;
@@ -218,6 +219,10 @@ pub fn run() {
                     })
                 },
             ));
+            app.manage(Arc::new(agent_server::AgentServer::start(
+                app.handle().clone(),
+                &app_data_dir,
+            )?));
             app.manage(AppState {
                 ai: ai::LazyAiCompletion::new(
                     ollama_runtime,
@@ -251,6 +256,12 @@ pub fn run() {
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
+            agent_server::agent_server_status,
+            agent_server::configure_agent_server,
+            agent_server::rotate_agent_server_token,
+            agent_server::attach_agent_bridge,
+            agent_server::detach_agent_bridge,
+            agent_server::answer_agent_request,
             commands::ai::start_ai_completion,
             commands::ai::cancel_ai_completion,
             commands::ai::ollama_runtime_status,
@@ -370,6 +381,9 @@ pub fn run() {
             if let RunEvent::Exit = event
                 && let Some(state) = app.try_state::<AppState>()
             {
+                if let Some(server) = app.try_state::<Arc<agent_server::AgentServer>>() {
+                    server.shutdown();
+                }
                 state.ai.shutdown();
                 state.ollama.shutdown();
                 state.sync.shutdown_within(Duration::from_secs(2));

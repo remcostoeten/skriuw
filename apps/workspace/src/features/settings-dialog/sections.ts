@@ -8,6 +8,7 @@ import {
   SettingsIcon,
   StarIcon,
   UserIcon,
+  WaypointsIcon,
 } from "@/shared/icons/static";
 import { settingsCopy } from "@/shared/ui/settings-copy";
 import { SHORTCUT_DEFINITIONS } from "@/commands/definitions";
@@ -45,6 +46,16 @@ export const SECTIONS = [
     searchText:
       "artificial intelligence providers models writing tools prompts prompt library built-in custom system prompt rewrite improve grammar shorten lengthen tone simplify translate summarize title outline continue duplicate reset modified default model switcher ollama anthropic claude openai gpt openrouter gemini groq local remote playground prompt test stream usage history runs tokens token count cost spend estimate estimated retention prune clear history metadata only voice dictation dictate speech microphone transcribe transcription whisper",
     icon: StarIcon,
+    desktopOnly: true,
+  },
+  {
+    id: "agents",
+    summary: settingsCopy.agents.letCodingAgentsReadAndOrganise,
+    label: "Agents",
+    description: "MCP access for Claude Code and other agents",
+    searchText:
+      "agents agent access mcp model context protocol claude code codex cursor automation api server token port connect external outside tasks boards databases",
+    icon: WaypointsIcon,
     desktopOnly: true,
   },
   {

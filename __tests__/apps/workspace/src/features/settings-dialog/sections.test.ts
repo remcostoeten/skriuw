@@ -14,7 +14,7 @@ test("the sidebar splits into everyday preferences and account, safety, and data
   const groups = groupSettingsSections(availableSettingsSections(true, false, ""));
   assert.deepEqual(
     groups.top.map((section) => section.id),
-    ["appearance", "editor", "ai", "shortcuts", "media"],
+    ["appearance", "editor", "ai", "agents", "shortcuts", "media"],
   );
   assert.deepEqual(
     groups.bottom.map((section) => section.id),
@@ -38,6 +38,8 @@ test("AI and desktop-only sections are gated by setting and runtime", () => {
   assert.equal(ids(false, false).includes("ai"), false);
   assert.equal(ids(true, false).includes("ai"), true);
   assert.equal(ids(true, false).includes("media"), true);
+  assert.equal(ids(false, false).includes("agents"), true);
+  assert.equal(ids(true, true).includes("agents"), false);
   assert.equal(
     ids(true, true).includes("ai"),
     false,
