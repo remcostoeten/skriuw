@@ -283,3 +283,12 @@ test("a refresh skips a queued block that was deleted before it ran", () => {
   assert.deepEqual(codeHighlightKey.getState(removed)?.pending, []);
   assert.deepEqual(painted(settled(removed)), []);
 });
+
+test("Elixir fences highlight under ex and exs as well as elixir", () => {
+  const code = 'def hello(name), do: "hi #{name}"';
+  for (const params of ["elixir", "ex", "exs"]) {
+    assert.equal(resolveHighlightLanguage(params), params);
+    assert.ok(highlightCode(params, code).length > 0);
+  }
+  assert.equal(codeLanguageLabel("elixir"), "Elixir");
+});

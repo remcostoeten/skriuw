@@ -22,10 +22,12 @@ import {
   NewNoteIcon,
   PencilIcon,
   PinIcon,
+  SearchIcon,
   Trash2Icon,
 } from "@/shared/icons/static";
 import { showToast } from "@/shared/ui/toast";
 import { captureRenameReturnFocus } from "./rename-focus";
+import { requestSidebarSearch } from "./search/request";
 
 const onNotesRoute = onRoute("notes");
 
@@ -50,6 +52,20 @@ export function sidebarCommands(store: RendererStore, openSidebar: () => void): 
       shortcut: "createFolder",
       enabled: onNotesRoute,
       run: () => createFolder(store, null),
+    },
+    {
+      id: "search-notes",
+      label: "Search notes",
+      group: "Navigation",
+      keywords: ["search", "find", "notes", "sidebar", "filter"],
+      icon: <SearchIcon size={15} />,
+      shortcut: "searchNotes",
+      hint: shortcutDefinition("searchNotes").description,
+      enabled: onNotesRoute,
+      run: () => {
+        openSidebar();
+        requestSidebarSearch();
+      },
     },
     {
       id: "toggle-pin-note",

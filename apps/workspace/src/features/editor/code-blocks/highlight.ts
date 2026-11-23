@@ -1,6 +1,7 @@
 import bash from "highlight.js/lib/languages/bash";
 import css from "highlight.js/lib/languages/css";
 import diff from "highlight.js/lib/languages/diff";
+import elixir from "highlight.js/lib/languages/elixir";
 import go from "highlight.js/lib/languages/go";
 import javascript from "highlight.js/lib/languages/javascript";
 import json from "highlight.js/lib/languages/json";
@@ -46,6 +47,7 @@ const lowlight = createLowlight({
   bash,
   css,
   diff,
+  elixir,
   go,
   javascript,
   json,
@@ -61,6 +63,7 @@ const lowlight = createLowlight({
 
 lowlight.registerAlias({
   bash: ["shell", "zsh", "console"],
+  elixir: ["ex", "exs", "iex"],
   plaintext: ["text", "plain"],
   xml: ["vue"],
 });
@@ -70,6 +73,7 @@ export const CODE_LANGUAGES: readonly CodeLanguageOption[] = [
   { value: "bash", label: "Bash" },
   { value: "css", label: "CSS" },
   { value: "diff", label: "Diff" },
+  { value: "elixir", label: "Elixir" },
   { value: "go", label: "Go" },
   { value: "html", label: "HTML" },
   { value: "js", label: "JavaScript" },

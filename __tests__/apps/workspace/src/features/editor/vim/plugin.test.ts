@@ -201,6 +201,66 @@ test("operators with word motions, counts, and text objects", () => {
   assert.equal(quoted.markdown(), 'say "" now');
 });
 
+const BRACED_CODE =
+  "```ts\nfunction a() {\n  const x = 1;\n  if (x) {\n    return [x,\n      2];\n  }\n}\nafter\n```";
+
+test("bracket text objects reach brackets on other lines of a code block", () => {
+  const around = createHarness(BRACED_CODE, "const");
+  around.press("da{");
+  assert.equal(around.markdown(), "```ts\nfunction a() \nafter\n```");
+  const inner = createHarness(BRACED_CODE, "const");
+  inner.press("di{");
+  assert.equal(inner.markdown(), "```ts\nfunction a() {\n}\nafter\n```");
+  assert.equal(inner.feedback.at(-1), "5 lines deleted");
+  const nested = createHarness(BRACED_CODE, "return");
+  nested.press("di{");
+  assert.equal(
+    nested.markdown(),
+    "```ts\nfunction a() {\n  const x = 1;\n  if (x) {\n  }\n}\nafter\n```",
+  );
+  const square = createHarness(BRACED_CODE, "2]");
+  square.press("di[");
+  assert.equal(
+    square.markdown(),
+    "```ts\nfunction a() {\n  const x = 1;\n  if (x) {\n    return [];\n  }\n}\nafter\n```",
+  );
+  const outside = createHarness(BRACED_CODE, "after");
+  outside.press("da{");
+  assert.equal(outside.markdown(), BRACED_CODE);
+});
+
+test("bracket text objects select, change and yank across lines", () => {
+  const visual = createHarness(BRACED_CODE, "const");
+  visual.press("va{d");
+  assert.equal(visual.markdown(), "```ts\nfunction a() \nafter\n```");
+  const change = createHarness(BRACED_CODE, "const");
+  change.press("ci{");
+  assert.equal(change.mode(), "insert");
+  assert.equal(change.markdown(), "```ts\nfunction a() {\n\n}\nafter\n```");
+  const yank = createHarness(BRACED_CODE, "const");
+  yank.press("yi{");
+  assert.equal(yank.feedback.at(-1), "5 lines yanked");
+  assert.equal(yank.markdown(), BRACED_CODE);
+});
+
+test("counted linewise deletes go down and up and report the lines removed", () => {
+  const paragraphs = "one\n\ntwo\n\nthree\n\nfour\n\nfive";
+  const down = createHarness(paragraphs, "two");
+  down.press("3dd");
+  assert.equal(down.markdown(), md("one\n\nfive"));
+  assert.equal(down.feedback.at(-1), "3 lines deleted");
+  const up = createHarness(paragraphs, "four");
+  up.press("d2k");
+  assert.equal(up.markdown(), md("one\n\nfive"));
+  assert.equal(up.feedback.at(-1), "3 lines deleted");
+  const below = createHarness(paragraphs, "two");
+  below.press("2dj");
+  assert.equal(below.markdown(), md("one\n\nfive"));
+  const code = createHarness(BRACED_CODE, "return");
+  code.press("d2k");
+  assert.equal(code.markdown(), "```ts\nfunction a() {\n      2];\n  }\n}\nafter\n```");
+});
+
 test("linewise delete removes a list item and keeps the list valid", () => {
   const editor = createHarness("- one\n- two\n- three", "two");
   editor.press("dd");

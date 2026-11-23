@@ -57,6 +57,7 @@ export type ShortcutActionId =
   | "toggleRailLabels"
   | "toggleMetadata"
   | "focusSidebar"
+  | "searchNotes"
   | "collapseAllFolders"
   | "focusEditor"
   | "focusMainContent"
@@ -95,6 +96,7 @@ export type ShortcutActionId =
   | "toggleChecklistItem"
   | "jumpToLine"
   | "toggleDiagramSource"
+  | "changeCodeBlockLanguage"
   | "insertInlineMath"
   | "insertMathBlock"
   | "goToDocumentStart"
@@ -590,6 +592,16 @@ export const SHORTCUT_DEFINITIONS: readonly ShortcutDefinition[] = [
     scopes: "notes-route",
   },
   {
+    id: "searchNotes",
+    keys: "mod+shift+s",
+    label: "Search notes",
+    description:
+      "Open the search field in the notes sidebar and put the caret in it. The sidebar opens first when it is hidden.",
+    group: "Navigation",
+    worksWhileTyping: true,
+    scopes: "notes-route",
+  },
+  {
     id: "collapseAllFolders",
     keys: "mod+shift+e",
     label: "Collapse all folders",
@@ -880,6 +892,16 @@ export const SHORTCUT_DEFINITIONS: readonly ShortcutDefinition[] = [
     label: "Toggle diagram source",
     description:
       "Flip the Mermaid code block under the caret between its rendered preview and its source. Enter on a selected preview opens the source. Escape in the source returns to the preview.",
+    group: "Editor",
+    worksWhileTyping: true,
+    boundInEditor: true,
+  },
+  {
+    id: "changeCodeBlockLanguage",
+    keys: "mod+alt+c",
+    label: "Change code block language",
+    description:
+      "Open the language picker of the code block under the caret. Arrow keys or typing a name move through the list, Enter picks a language and Escape returns to the code.",
     group: "Editor",
     worksWhileTyping: true,
     boundInEditor: true,

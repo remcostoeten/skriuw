@@ -36,6 +36,10 @@ export const SETTINGS_SEARCH_COPY = {
     "Editor font",
     "Line spacing",
     "Writing",
+    "Line numbers",
+    "Number every line in the left margin of the rendered editor. Each line of a code block counts, and an image or table row counts as one.",
+    "Line numbers in raw Markdown",
+    "Number every row in the raw Markdown editor.",
     "Vim keybindings",
     "Vim cursor",
     "Focus",
@@ -317,17 +321,19 @@ export const SETTINGS_SEARCH_GROUPS = {
       keywords: "font sans serif mono line spacing cozy comfortable relaxed",
       rows: [
         { label: "Editor font", detail: "Used for note content in the rendered editor." },
-        { label: "Line spacing", detail: "How much room each line of text gets." },
+        { label: "Line spacing", detail: "Space between lines of text." },
       ],
     },
     {
       id: "writing",
       title: "Writing",
       hint: "",
-      keywords: "placeholder vim modal",
+      keywords: "placeholder vim modal line numbers gutter",
       rows: [
         { label: "Empty note prompt", detail: "Shown before a note has content." },
         { label: "Default to raw Markdown", detail: "New notes open in the raw Markdown editor. Toggle any note with mod+m." },
+        { label: "Line numbers", detail: "Number every line in the left margin of the rendered editor. Each line of a code block counts, and an image or table row counts as one." },
+        { label: "Line numbers in raw Markdown", detail: "Number every row in the raw Markdown editor." },
         { label: "Vim keybindings", detail: "Modal editing in both editors: normal, insert, and visual modes with counts, operators, text objects, registers, dot repeat, and : commands. Toggle anywhere with mod+alt+i." },
         { label: "Vim cursor", detail: "The cursor shape used in normal and visual modes." },
         { label: "Blink Vim cursor", detail: "Blink the normal-mode cursor in both rendered and raw Markdown editors." },
@@ -360,13 +366,13 @@ export const SETTINGS_SEARCH_GROUPS = {
       hint: "",
       keywords: "daily word goal target count streak",
       rows: [
-        { label: "Daily word goal", detail: "Shows quiet progress in the journal day header and counts goal days in the stats. A change applies from today; earlier days keep the goal they had." },
+        { label: "Daily word goal", detail: "Shows progress in the journal day header and counts goal days in the stats. A change applies from today. Earlier days keep the goal they had." },
       ],
     },
     {
       id: "math",
       title: "Math macros",
-      hint: "Markdown exports keep macro commands. Other editors need the same definitions; chemistry uses mhchem.",
+      hint: "Markdown exports keep macro commands, so other editors need the same definitions. Chemistry uses mhchem.",
       keywords: "katex latex tex math mhchem",
       rows: [
         { label: "Workspace macros", detail: "Define workspace TeX commands, one per line: \\R = \\mathbb{R}. Use #1 through #9 for arguments. Macros sync with your workspace." },
@@ -396,7 +402,7 @@ export const SETTINGS_SEARCH_GROUPS = {
     {
       id: "local",
       title: "Local AI",
-      hint: "Run private models on this device with Ollama.",
+      hint: "Run models on this device with Ollama.",
       keywords: "ollama local runtime models pull install",
       rows: [
       ],
@@ -412,7 +418,7 @@ export const SETTINGS_SEARCH_GROUPS = {
     {
       id: "prompts",
       title: "Writing prompts",
-      hint: "Customize the instructions behind each writing action.",
+      hint: "Edit the prompt for each writing action.",
       keywords: "prompt library built-in custom system prompt rewrite improve grammar shorten lengthen tone simplify translate summarize title outline continue",
       rows: [
       ],
@@ -454,7 +460,7 @@ export const SETTINGS_SEARCH_GROUPS = {
     {
       id: "all",
       title: "All shortcuts",
-      hint: "Click a shortcut, then press a new key combination. Enter or clicking elsewhere keeps the current one, Escape cancels.",
+      hint: "Click a shortcut, then press a new key combination. Enter or clicking elsewhere keeps the current one. Escape cancels.",
       keywords: "keys hotkeys remap commands bindings filter find",
       rows: [
         { label: "Filter shortcuts", detail: "" },
@@ -562,7 +568,7 @@ export const SETTINGS_SEARCH_GROUPS = {
       hint: "",
       keywords: "",
       rows: [
-        { label: "Remove the lock", detail: "Unlocks every locked note for good and forgets the and recovery code." },
+        { label: "Remove the lock", detail: "Unlocks every locked note permanently and forgets the and recovery code." },
       ],
     },
   ],
@@ -574,7 +580,7 @@ export const SETTINGS_SEARCH_GROUPS = {
       keywords: "database sqlite local file manager workspace path move location install",
       rows: [
         { label: "Workspace database", detail: "Stored durably in this browser’s private site storage (OPFS) on this device. Clearing site data for this origin deletes it, so keep a recent exported archive outside the browser." },
-        { label: "Install Skriuw", detail: "Adds Skriuw to your home screen or app list with its own window, and tells the browser this storage is worth keeping." },
+        { label: "Install Skriuw", detail: "Adds Skriuw to your home screen or app list with its own window, and asks the browser to keep this storage." },
         { label: "Move workspace", detail: "Copies the database, images, history, and backups to a new folder, then restarts the app using it." },
       ],
     },
@@ -586,7 +592,7 @@ export const SETTINGS_SEARCH_GROUPS = {
       rows: [
         { label: "Import notes from a folder", detail: "Markdown, text, Obsidian vaults, extracted Notion exports, or TextBundles. Shows a preview before anything changes." },
         { label: "Import a provider export", detail: "ZIP, Evernote ENEX, Joplin, Google Keep, Standard Notes, Bear .bear2bk, Simplenote JSON, Notion CSV, Markdown, or text files. Shows a preview before anything changes." },
-        { label: "Remote images in imports", detail: "Images that Markdown links from the web, such as README badges. Downloading fetches each one once during import and stores it in the workspace; notes never load them from the web when opened." },
+        { label: "Remote images in imports", detail: "Images that Markdown links from the web, such as README badges. Downloading fetches each one once during import and stores it in the workspace. Notes never load them from the web when opened." },
         { label: "Export workspace", detail: "Downloads a portable JSON archive of this workspace. Writes a portable JSON archive into the exports folder next to the database." },
       ],
     },

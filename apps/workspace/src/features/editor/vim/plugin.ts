@@ -225,7 +225,7 @@ function rangeUnitCount(
 ): { count: number; unit: "line" | "character" } {
   if (range.linewise) {
     const count = allLines(state.doc).filter(
-      (line) => line.start >= range.from && line.end <= range.to,
+      (line) => line.end >= range.from && line.start <= range.to,
     ).length;
     return { count: Math.max(1, count), unit: "line" };
   }

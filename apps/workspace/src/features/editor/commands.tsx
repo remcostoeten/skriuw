@@ -5,6 +5,7 @@ import { toggleEditorMode } from "@/features/editor/editor-mode";
 import { updateSetting } from "@/features/settings/update-settings";
 import {
   dimsFocusParagraphs,
+  showsEditorLineNumbers,
   usesTypewriterScrolling,
   usesVimMode,
 } from "@/features/settings/settings-model";
@@ -12,6 +13,7 @@ import {
   AlignCenterIcon,
   FileTextIcon,
   KeyboardIcon,
+  ListOrderedIcon,
   PencilIcon,
   PilcrowIcon,
   ReplaceIcon,
@@ -48,6 +50,20 @@ export function editorCommands(store: RendererStore): AppCommand[] {
       shortcut: "toggleVimMode",
       run: () => {
         updateSetting(store, "vimMode", !usesVimMode(store.getState().settings));
+      },
+    },
+    {
+      id: "toggle-line-numbers",
+      label: "Toggle line numbers",
+      group: "Actions",
+      keywords: ["line", "numbers", "gutter", "rows", "editor"],
+      icon: <ListOrderedIcon size={15} />,
+      run: () => {
+        updateSetting(
+          store,
+          "editorLineNumbers",
+          !showsEditorLineNumbers(store.getState().settings),
+        );
       },
     },
     {

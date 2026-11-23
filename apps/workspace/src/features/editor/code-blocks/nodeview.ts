@@ -97,6 +97,46 @@ export async function writeCodeBlockClipboard(
   }
 }
 
+const LANGUAGE_MENU_EVENT = "skriuw:code-block-language-menu";
+
+/**
+ * @name codeBlockAtSelection
+ * @description Position of the code block holding the caret, or of the
+ * node-selected code block, and null when the selection is not in one.
+ *
+ * @example
+ * const pos = codeBlockAtSelection(view.state);
+ */
+export function codeBlockAtSelection(state: EditorState): number | null {
+  const { selection } = state;
+  if (selection instanceof NodeSelection) {
+    return selection.node.type.name === "code_block" ? selection.from : null;
+  }
+  const { $from } = selection;
+  for (let depth = $from.depth; depth > 0; depth -= 1) {
+    if ($from.node(depth).type.name === "code_block") return $from.before(depth);
+  }
+  return null;
+}
+
+/**
+ * @name openCodeBlockLanguageMenu
+ * @description Opens the language picker of the code block under the caret and
+ * moves focus to the current language, so the language can be changed without
+ * the pointer. Returns false when the caret is not in a code block.
+ *
+ * @example
+ * openCodeBlockLanguageMenu(view);
+ */
+export function openCodeBlockLanguageMenu(view: EditorView): boolean {
+  const pos = codeBlockAtSelection(view.state);
+  if (pos === null || !view.editable) return false;
+  const dom = view.nodeDOM(pos);
+  if (!(dom instanceof HTMLElement)) return false;
+  dom.dispatchEvent(new CustomEvent(LANGUAGE_MENU_EVENT));
+  return true;
+}
+
 function isRenderableMermaidNode(node: ProseMirrorNode): boolean {
   return (
     node.type.name === "code_block" &&
@@ -540,6 +580,8 @@ export function createCodeBlockNodeView(
     close.focus();
   }
 
+  let openedFromKeyboard = false;
+
   function selectedIndex(): number {
     buildMenuItems();
     const params = currentLanguage();
@@ -588,10 +630,16 @@ export function createCodeBlockNodeView(
 
   function closeToTrigger(): void {
     setOpen(false);
+    if (openedFromKeyboard) {
+      openedFromKeyboard = false;
+      view.focus();
+      return;
+    }
     trigger.focus();
   }
 
   function chooseLanguage(value: string): void {
+    openedFromKeyboard = false;
     setOpen(false);
     const pos = getPos();
     if (pos === undefined || !view.editable) return;
@@ -748,6 +796,11 @@ export function createCodeBlockNodeView(
   preview.addEventListener("mousedown", (event) => {
     event.preventDefault();
     selectBlock();
+  });
+
+  dom.addEventListener(LANGUAGE_MENU_EVENT, () => {
+    openedFromKeyboard = true;
+    openAndFocus(selectedIndex());
   });
 
   dom.addEventListener(MERMAID_MODE_EVENT, (event) => {

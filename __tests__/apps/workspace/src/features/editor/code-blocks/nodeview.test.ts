@@ -4,6 +4,7 @@ import { EditorState, NodeSelection, TextSelection, type Transaction } from "pro
 import type { EditorView } from "prosemirror-view";
 import {
   MERMAID_MODE_EVENT,
+  codeBlockAtSelection,
   codeBlockClipboardText,
   createCodeBlockNodeView,
   createMermaidPreviewSelectionPlugin,
@@ -703,4 +704,18 @@ test("a browser selection inside a previewed block resolves to the block itself"
   assert.equal(between(viewFor("preview"), state.doc.resolve(2), state.doc.resolve(12)), null);
   const gantt = mermaidState("gantt\n  title x");
   assert.equal(between(viewFor("preview"), gantt.doc.resolve(12), gantt.doc.resolve(14)), null);
+});
+
+test("the language picker shortcut only claims a caret inside a code block", () => {
+  const doc = productSchema.node("doc", null, [
+    productSchema.node("paragraph", null, [productSchema.text("intro")]),
+    productSchema.node("code_block", { params: "ts" }, [productSchema.text("const a = 1;")]),
+  ]);
+  const state = EditorState.create({ doc });
+  const inParagraph = state.apply(state.tr.setSelection(TextSelection.create(doc, 2)));
+  assert.equal(codeBlockAtSelection(inParagraph), null);
+  const inCode = state.apply(state.tr.setSelection(TextSelection.create(doc, 10)));
+  assert.equal(codeBlockAtSelection(inCode), 7);
+  const selected = state.apply(state.tr.setSelection(NodeSelection.create(doc, 7)));
+  assert.equal(codeBlockAtSelection(selected), 7);
 });

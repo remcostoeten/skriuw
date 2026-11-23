@@ -9,6 +9,7 @@ import {
   lineBelow,
   lineOffset,
   lineStep,
+  linesOfBlock,
   positionAt,
   type VimLine,
 } from "./lines";
@@ -460,7 +461,41 @@ export function resolveMotion(context: MotionContext, motion: VimMotion): Motion
   }
 }
 
-/** Resolves `iw`, `a"`, `ip` and friends to a document range. */
+function bracketObjectInBlock(
+  line: VimLine,
+  column: number,
+  open: string,
+  around: boolean,
+): ObjectRange | null {
+  const positions: number[] = [];
+  let text = "";
+  let cursor = column;
+  const lines = linesOfBlock(line.block, line.blockPos);
+  lines.forEach((entry, index) => {
+    if (index === line.segmentIndex) cursor = text.length + column;
+    for (let at = 0; at < entry.text.length; at += 1) positions.push(positionAt(entry, at));
+    positions.push(entry.end);
+    text += index < lines.length - 1 ? `${entry.text}\n` : entry.text;
+  });
+  const range = bracketObject(text, cursor, open, around);
+  if (!range) return null;
+  if (around || text[range.from] !== "\n") {
+    return { from: positions[range.from]!, to: positions[range.to]!, linewise: false };
+  }
+  const lastBreak = text.lastIndexOf("\n", range.to - 1);
+  if (text.slice(lastBreak + 1, range.to).trim() !== "") {
+    return { from: positions[range.from + 1]!, to: positions[range.to]!, linewise: false };
+  }
+  if (lastBreak <= range.from) return null;
+  return { from: positions[range.from + 1]!, to: positions[lastBreak]!, linewise: true };
+}
+
+/**
+ * Resolves `iw`, `a"`, `ip` and friends to a document range. Bracket objects
+ * search the whole textblock, so `da{` works on braces that span the lines of
+ * a code block; an inner object whose brackets sit on their own lines covers
+ * the lines between them, linewise.
+ */
 export function resolveTextObject(
   doc: ProseMirrorNode,
   cursor: number,
@@ -493,21 +528,17 @@ export function resolveTextObject(
     case "(":
     case ")":
     case "b":
-      range = bracketObject(line.text, column, "(", motion.around);
-      break;
+      return bracketObjectInBlock(line, column, "(", motion.around);
     case "[":
     case "]":
-      range = bracketObject(line.text, column, "[", motion.around);
-      break;
+      return bracketObjectInBlock(line, column, "[", motion.around);
     case "{":
     case "}":
     case "B":
-      range = bracketObject(line.text, column, "{", motion.around);
-      break;
+      return bracketObjectInBlock(line, column, "{", motion.around);
     case "<":
     case ">":
-      range = bracketObject(line.text, column, "<", motion.around);
-      break;
+      return bracketObjectInBlock(line, column, "<", motion.around);
     default:
       range = null;
   }

@@ -65,12 +65,25 @@ test("a line break serializes as a plain newline and parses back", () => {
   assert.equal(reparsed.firstChild?.child(1).type.name, "hard_break");
 });
 
-test("Enter on the empty line after a break starts a real paragraph", () => {
-  const state = pressEnter(pressEnter(stateFromMarkdown("one")));
-  assert.equal(state.doc.childCount, 2);
-  assert.equal(state.doc.firstChild?.lastChild?.type.name, "text");
-  assert.equal(state.doc.lastChild?.content.size, 0);
-  assert.equal(state.selection.$from.parent, state.doc.lastChild);
+test("every Enter on an empty line adds another line break", () => {
+  let state = stateFromMarkdown("one");
+  for (let presses = 1; presses <= 4; presses += 1) {
+    state = pressEnter(state);
+    assert.equal(state.doc.childCount, 1);
+    assert.equal(state.doc.firstChild?.childCount, presses + 1);
+  }
+});
+
+test("Enter in an empty document moves the caret down a full line each time", () => {
+  let state = EditorState.create({
+    doc: productSchema.node("doc", null, [productSchema.node("paragraph")]),
+    plugins: createProductPlugins(),
+  });
+  for (let presses = 1; presses <= 3; presses += 1) {
+    state = pressEnter(state);
+    assert.equal(state.doc.childCount, 1);
+    assert.equal(state.doc.firstChild?.childCount, presses);
+  }
 });
 
 test("Shift+Enter starts a new paragraph directly", () => {
@@ -130,4 +143,22 @@ test("consecutive breaks stay inside one paragraph across a round trip", () => {
   assert.equal(parsed.firstChild?.childCount, 4);
   assert.equal(parsed.firstChild?.child(1).type.name, "hard_break");
   assert.equal(parsed.firstChild?.child(2).type.name, "hard_break");
+});
+
+test("Enter in a code block nested in a list item adds a newline to the code", () => {
+  const markdown = "- item\n\n  ```ts\n  const a = 1\n  ```";
+  const doc = parseProductMarkdown(markdown);
+  const initial = EditorState.create({ doc, plugins: createProductPlugins() });
+  let codePos = -1;
+  doc.descendants((node, pos) => {
+    if (node.type.name === "code_block") codePos = pos;
+  });
+  const end = codePos + 1 + doc.nodeAt(codePos)!.content.size;
+  const placed = initial.apply(initial.tr.setSelection(TextSelection.create(initial.doc, end)));
+  for (const shiftKey of [false, true]) {
+    const state = pressEnter(placed, shiftKey);
+    const items = state.doc.firstChild?.childCount;
+    assert.equal(items, 1);
+    assert.equal(state.doc.nodeAt(codePos)?.textContent, "const a = 1\n");
+  }
 });
