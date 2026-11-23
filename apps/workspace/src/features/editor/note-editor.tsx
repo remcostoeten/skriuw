@@ -27,6 +27,9 @@ import { insertInlineMath, insertMathBlock } from "./math/commands";
 import { createMathBlockNodeView, createMathInlineNodeView } from "./math/nodeview";
 import { workspaceMathRendering } from "./math/workspace-render";
 import { createDiagramNodeView } from "./diagrams/nodeview";
+import { insertExcalidrawScene } from "./excalidraw/insert";
+import { excalidrawSceneFiles, pickExcalidrawFile, readExcalidrawImport } from "./excalidraw/files";
+import { createExcalidrawNodeView, openExcalidrawNode } from "./excalidraw/nodeview";
 import {
   activateProvidedNode,
   providedAssistant,
@@ -85,7 +88,7 @@ import {
 import { opensNotesInTabs } from "@skriuw/renderer-core/settings/open-notes-in-tabs";
 import { closeTab } from "@/features/workspace-layout/panes";
 import { noop } from "@skriuw/shared/helpers/noop";
-import { toastActionIsAvailable } from "@/shared/ui/toast";
+import { showToast, toastActionIsAvailable } from "@/shared/ui/toast";
 import { useRendererSelector } from "@skriuw/renderer-core/store/use-renderer-selector";
 import {
   addAnnotationComment,
@@ -323,6 +326,26 @@ const closedSlashMenu: SlashMenu = {
   y: 0,
   openUp: false,
 };
+
+function insertDroppedDrawings(
+  view: EditorView,
+  files: readonly File[],
+  position: number | null,
+): void {
+  Promise.all(files.map((file) => readExcalidrawImport(file)))
+    .then((results) => {
+      let at = position;
+      for (const result of results) {
+        if (!result.ok) {
+          showToast({ message: "Could not import the drawing", description: result.reason });
+          continue;
+        }
+        insertExcalidrawScene(view, result.scene, at);
+        at = view.state.selection.to;
+      }
+    })
+    .catch((error: unknown) => console.error("excalidraw drop failed", error));
+}
 
 function slashMenuEqual(left: SlashMenu, right: SlashMenu): boolean {
   return (
@@ -1370,6 +1393,16 @@ export function NoteEditor({ store, selectNoteId = selectStoreActiveNote }: Prop
     if (action === "open-emoji") {
       view.dispatch(view.state.tr.insertText(":"));
       view.focus();
+      return;
+    }
+    if (action === "import-excalidraw") {
+      pickExcalidrawFile()
+        .then((scene) => {
+          if (scene === null || viewRef.current !== view) return;
+          insertExcalidrawScene(view, scene, null);
+          view.focus();
+        })
+        .catch((error: unknown) => console.error("excalidraw import failed", error));
     }
   }
 
@@ -2151,6 +2184,7 @@ export function NoteEditor({ store, selectNoteId = selectStoreActiveNote }: Prop
         math_inline: (node, view, getPos) =>
           createMathInlineNodeView(node, view, getPos, workspaceMathRendering(store)),
         diagram: createDiagramNodeView,
+        excalidraw: createExcalidrawNodeView(store),
         media: (node, currentView, getPos) =>
           createMediaNodeView(
             store,
@@ -2208,6 +2242,14 @@ export function NoteEditor({ store, selectNoteId = selectStoreActiveNote }: Prop
       },
       handleDrop(currentView, event, _slice, moved) {
         if (moved) return false;
+        const drawings = excalidrawSceneFiles(event.dataTransfer?.files);
+        if (drawings.length > 0 && activeIdRef.current) {
+          event.preventDefault();
+          const dropAt =
+            currentView.posAtCoords({ left: event.clientX, top: event.clientY })?.pos ?? null;
+          insertDroppedDrawings(currentView, drawings, dropAt);
+          return true;
+        }
         const noteId = activeIdRef.current;
         const files = collectImageFiles(event.dataTransfer);
         const videos = collectVideoFiles(event.dataTransfer);
@@ -2329,7 +2371,10 @@ export function NoteEditor({ store, selectNoteId = selectStoreActiveNote }: Prop
         }
         if (!mod && event.key === "Enter") {
           const { selection } = currentView.state;
-          if (selection instanceof NodeSelection && activateProvidedNode(store, selection.node)) {
+          if (
+            selection instanceof NodeSelection &&
+            (openExcalidrawNode(selection.node) || activateProvidedNode(store, selection.node))
+          ) {
             return true;
           }
         }

@@ -4,7 +4,7 @@ import {
   storeBrowserMediaBlob,
   sweepBrowserMediaBlobs,
 } from "./media";
-import { pickTextFile } from "./files";
+import { pickTextFile, saveTextFile } from "./files";
 import { exportBrowserArchive, importBrowserArchive } from "./archive";
 import {
   browserFailure,
@@ -46,6 +46,11 @@ export async function invokeBrowser<T>(command: string, args: unknown): Promise<
   }
   if (command === "pick_import_file") {
     return pickTextFile(pickAccept(args)) as Promise<T>;
+  }
+  if (command === "save_text_file") {
+    const { fileName, contents } = args as { fileName: string; contents: string };
+    saveTextFile(fileName, contents);
+    return fileName as T;
   }
   if (command === "export_workspace_archive") {
     return exportBrowserArchive() as Promise<T>;

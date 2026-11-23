@@ -100,3 +100,53 @@ pub async fn pick_import_files(
     .await
     .map_err(|error| error.to_string())?
 }
+
+const MAX_SAVED_TEXT_FILE_BYTES: usize = 64 * 1024 * 1024;
+
+#[tauri::command]
+pub async fn save_text_file(
+    app: tauri::AppHandle,
+    title: String,
+    file_name: String,
+    extension: String,
+    contents: String,
+) -> Result<Option<String>, String> {
+    if contents.len() > MAX_SAVED_TEXT_FILE_BYTES {
+        return Err("The file is larger than 64 MB.".into());
+    }
+    if extension.is_empty() || !extension.chars().all(|c| c.is_ascii_alphanumeric()) {
+        return Err("The file extension is invalid.".into());
+    }
+    tauri::async_runtime::spawn_blocking(move || {
+        #[cfg(debug_assertions)]
+        let picked = match picker_override() {
+            Some(paths) => paths.into_iter().next().map(std::path::PathBuf::from),
+            None => pick_save_path(&app, &title, &file_name, &extension)?,
+        };
+        #[cfg(not(debug_assertions))]
+        let picked = pick_save_path(&app, &title, &file_name, &extension)?;
+        let Some(path) = picked else {
+            return Ok(None);
+        };
+        std::fs::write(&path, contents).map_err(|error| error.to_string())?;
+        Ok(Some(path.display().to_string()))
+    })
+    .await
+    .map_err(|error| error.to_string())?
+}
+
+fn pick_save_path(
+    app: &tauri::AppHandle,
+    title: &str,
+    file_name: &str,
+    extension: &str,
+) -> Result<Option<std::path::PathBuf>, String> {
+    app.dialog()
+        .file()
+        .set_title(title)
+        .set_file_name(file_name)
+        .add_filter(extension, &[extension])
+        .blocking_save_file()
+        .map(|path| path.into_path().map_err(|error| error.to_string()))
+        .transpose()
+}

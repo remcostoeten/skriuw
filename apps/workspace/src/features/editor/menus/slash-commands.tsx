@@ -22,6 +22,7 @@ import {
   MinusIcon,
   MusicIcon,
   PaperclipIcon,
+  PencilIcon,
   SmileIcon,
   SquareCodeIcon,
   TableIcon,
@@ -37,7 +38,7 @@ import { productSchema, wrapLineInCheckList, type MediaKind, type SlashTrigger }
 import { insertTask } from "../tasks/promotion";
 import { insertInlineMath, insertMathBlock } from "../math/commands";
 
-export type SlashAction = "pick-image" | "pick-video" | "open-emoji";
+export type SlashAction = "pick-image" | "pick-video" | "open-emoji" | "import-excalidraw";
 
 export type SlashCommand = {
   id: string;
@@ -250,6 +251,25 @@ export const slashCommands: SlashCommand[] = [
     icon: <WaypointsIcon size={16} />,
     command: insertMermaidFence(template),
   })),
+  {
+    id: "excalidraw",
+    label: "Excalidraw drawing",
+    subtext: "Sketch shapes, arrows and text on a canvas",
+    group: "Blocks",
+    aliases: ["drawing", "draw", "sketch", "whiteboard", "canvas", "excalidraw"],
+    icon: <PencilIcon size={16} />,
+    command: insertBlockNode(() => requiredNode("excalidraw").create()),
+  },
+  {
+    id: "excalidraw-import",
+    label: "Import Excalidraw file",
+    subtext: "Insert a .excalidraw file as a drawing",
+    group: "Blocks",
+    aliases: ["drawing", "excalidraw", "import", "open", "file"],
+    icon: <PencilIcon size={16} />,
+    command: () => true,
+    action: "import-excalidraw",
+  },
   {
     id: "database-board",
     label: "Database board",

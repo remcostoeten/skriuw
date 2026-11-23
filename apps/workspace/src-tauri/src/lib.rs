@@ -325,6 +325,7 @@ pub fn run() {
             commands::pickers::pick_directory,
             commands::pickers::pick_import_file,
             commands::pickers::pick_import_files,
+            commands::pickers::save_text_file,
             commands::media::store_note_image,
             commands::media::note_media_path,
             commands::media::read_note_image_blob,

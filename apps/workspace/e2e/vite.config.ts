@@ -2,11 +2,12 @@ import tailwindcss from "@tailwindcss/vite";
 import react from "@vitejs/plugin-react";
 import { resolve } from "node:path";
 import { defineConfig } from "vite";
+import { bundleExcalidrawFonts } from "../vite.config";
 
 export default defineConfig({
   root: resolve(import.meta.dirname, ".."),
   base: "./",
-  plugins: [react(), tailwindcss()],
+  plugins: [react(), tailwindcss(), bundleExcalidrawFonts()],
   define: {
     "import.meta.env.VITE_SKRIUW_CLOUD_URL": JSON.stringify("http://e2e.invalid"),
   },

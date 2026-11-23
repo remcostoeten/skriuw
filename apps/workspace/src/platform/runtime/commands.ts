@@ -339,6 +339,23 @@ export function pickImportFiles(title: string): Promise<string[]> {
   return invoke<string[]>("pick_import_files", { title });
 }
 
+/**
+ * @name saveTextFile
+ * @description Saves text to a file the user picks: a native save dialog on
+ * the desktop, a download in the browser. Resolves to where it was saved, or
+ * null when the user cancels.
+ * @example
+ * await saveTextFile("Save drawing", "Sketch.excalidraw", "excalidraw", text);
+ */
+export function saveTextFile(
+  title: string,
+  fileName: string,
+  extension: string,
+  contents: string,
+): Promise<string | null> {
+  return invoke<string | null>("save_text_file", { title, fileName, extension, contents });
+}
+
 export function exportMarkdownTree(
   entries: MarkdownExportEntryPayload[],
   targetDir: string,

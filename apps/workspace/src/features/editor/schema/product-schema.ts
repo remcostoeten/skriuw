@@ -4,6 +4,7 @@ import { addListNodes } from "prosemirror-schema-list";
 import { tableNodes } from "prosemirror-tables";
 import { databaseViewSpec } from "./database";
 import { diagramSpec } from "./diagrams";
+import { excalidrawSpec } from "./excalidraw";
 import { blockedImageSpec, imageRefSpec } from "./images";
 import { annotationSpec, highlightSpec, strikethroughSpec, underlineSpec } from "./marks";
 import { mathBlockSpec, mathInlineSpec } from "./math";
@@ -43,6 +44,7 @@ const nodes = addListNodes(basicSchema.spec.nodes, "paragraph block*", "block")
   .addToEnd("raw_markdown", rawMarkdownSpec)
   .addToEnd("diagram", diagramSpec)
   .addToEnd("database_view", databaseViewSpec)
+  .addToEnd("excalidraw", excalidrawSpec)
   .addToEnd("check_list", checkListSpec)
   .addToEnd("check_item", checkItemSpec)
   .addToEnd("toggle_list", toggleListSpec)

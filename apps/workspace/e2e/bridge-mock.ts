@@ -15,6 +15,8 @@ type InvokeArguments = {
   sourcePath?: string;
   rootPath?: string;
   title?: string;
+  fileName?: string;
+  contents?: string;
 };
 
 const calls: { command: string; arguments: InvokeArguments }[] = [];
@@ -68,6 +70,9 @@ export function invoke<T>(command: string, arguments_: InvokeArguments = {}): Pr
       revisions: [],
       rankChanges: [],
     } as T);
+  }
+  if (command === "save_text_file") {
+    return Promise.resolve(`/tmp/skriuw-e2e/${arguments_.fileName ?? ""}` as T);
   }
   if (command === "pick_import_file") {
     return Promise.resolve("/tmp/skriuw-provider-export" as T);

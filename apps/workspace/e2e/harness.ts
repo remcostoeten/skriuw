@@ -12,6 +12,7 @@ type WorkflowState = {
   people: Record<string, string>;
   settings: Record<string, unknown>;
   bridgeCommands: string[];
+  savedTextFiles: { fileName: string; contents: string }[];
   route: string;
   activeElement: string;
   dialog: string | null;
@@ -158,6 +159,11 @@ export function createWorkflowController(store: RendererStore) {
       ),
       settings: structuredClone(current.settings),
       bridgeCommands: readBridgeCalls().map((call) => call.command),
+      savedTextFiles: readBridgeCalls().flatMap(({ command, arguments: { fileName, contents } }) =>
+        command === "save_text_file" && fileName !== undefined && contents !== undefined
+          ? [{ fileName, contents }]
+          : [],
+      ),
       route: window.location.hash,
       activeElement:
         document.activeElement instanceof Element ? elementName(document.activeElement) : "",

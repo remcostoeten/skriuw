@@ -21,6 +21,7 @@ const tasksOnly = process.argv.includes("--tasks-only");
 const providerImportOnly = process.argv.includes("--provider-import-only");
 const journalOnly = process.argv.includes("--journal-only");
 const mermaidOnly = process.argv.includes("--mermaid-only");
+const excalidrawOnly = process.argv.includes("--excalidraw-only");
 function sleep(milliseconds) {
   return new Promise((resolveSleep) => setTimeout(resolveSleep, milliseconds));
 }
@@ -999,6 +1000,252 @@ async function checkMermaidRender(cdp, sessionId, checks) {
   );
 }
 
+const EXCALIDRAW_BLOCKS = "[...document.querySelectorAll('.skriuw-excalidraw-block')]";
+
+async function dragMouse(cdp, sessionId, from, to) {
+  await cdp.send(
+    "Input.dispatchMouseEvent",
+    { type: "mouseMoved", x: from.x, y: from.y },
+    sessionId,
+  );
+  await cdp.send(
+    "Input.dispatchMouseEvent",
+    { type: "mousePressed", x: from.x, y: from.y, button: "left", buttons: 1, clickCount: 1 },
+    sessionId,
+  );
+  for (let step = 1; step <= 8; step += 1) {
+    const x = from.x + ((to.x - from.x) * step) / 8;
+    const y = from.y + ((to.y - from.y) * step) / 8;
+    await cdp.send(
+      "Input.dispatchMouseEvent",
+      { type: "mouseMoved", x, y, button: "left", buttons: 1 },
+      sessionId,
+    );
+  }
+  await cdp.send(
+    "Input.dispatchMouseEvent",
+    { type: "mouseReleased", x: to.x, y: to.y, button: "left", buttons: 0, clickCount: 1 },
+    sessionId,
+  );
+}
+
+async function checkExcalidrawDrawings(cdp, sessionId, checks) {
+  await evaluate(cdp, sessionId, "window.location.hash = '#/notes'");
+  await evaluate(cdp, sessionId, "window.__SKRIUW_WORKFLOW_E2E__.settle()");
+  await evaluate(cdp, sessionId, 'window.__SKRIUW_WORKFLOW_E2E__.focusNamed("New note")');
+  await dispatchKey(cdp, sessionId, " ", "Space", 32, " ");
+  await evaluate(cdp, sessionId, "window.__SKRIUW_WORKFLOW_E2E__.settle()");
+  await waitFor(
+    cdp,
+    sessionId,
+    "document.querySelector('.ProseMirror[contenteditable=\"true\"]') !== null",
+    "editable note for drawing checks",
+  );
+  await evaluate(cdp, sessionId, "window.__SKRIUW_WORKFLOW_E2E__.focusEditor()");
+  await replaceText(cdp, sessionId, "Drawing note");
+  await dispatchKey(cdp, sessionId, "Enter", "Enter", 13);
+  await evaluate(cdp, sessionId, "window.__SKRIUW_WORKFLOW_E2E__.settle()");
+  await evaluate(cdp, sessionId, "window.__SKRIUW_WORKFLOW_E2E__.focusEditor()");
+  await typeText(cdp, sessionId, "/excalidraw");
+  await waitFor(
+    cdp,
+    sessionId,
+    "document.querySelector('.slash-menu[role=\"listbox\"]')?.textContent.includes('Excalidraw drawing')",
+    "excalidraw slash command",
+  );
+  await dispatchKey(cdp, sessionId, "Enter", "Enter", 13);
+  await waitFor(
+    cdp,
+    sessionId,
+    `${EXCALIDRAW_BLOCKS}.length === 1 && ${EXCALIDRAW_BLOCKS}[0].textContent.includes('Empty drawing')`,
+    "empty drawing block",
+  );
+  assert(
+    checks,
+    "excalidraw-empty-block-skips-library",
+    (await evaluate(cdp, sessionId, "document.querySelector('.excalidraw') === null")) === true,
+    "the Excalidraw editor mounted for an empty block",
+  );
+
+  await dispatchKey(cdp, sessionId, "Enter", "Enter", 13);
+  await waitFor(
+    cdp,
+    sessionId,
+    "document.querySelector('.excalidraw-overlay canvas.interactive') !== null",
+    "drawing editor opened with Enter",
+  );
+  const canvas = await evaluate(
+    cdp,
+    sessionId,
+    `(() => {
+      const rect = document.querySelector('.excalidraw-overlay canvas.interactive').getBoundingClientRect();
+      return { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 };
+    })()`,
+  );
+  await dispatchKey(cdp, sessionId, "r", "KeyR", 82, "r");
+  await dragMouse(
+    cdp,
+    sessionId,
+    { x: canvas.x - 120, y: canvas.y - 60 },
+    { x: canvas.x + 80, y: canvas.y + 60 },
+  );
+  await sleep(700);
+  await dispatchKey(cdp, sessionId, "Escape", "Escape", 27);
+  await waitFor(
+    cdp,
+    sessionId,
+    "document.querySelector('.excalidraw-overlay') === null",
+    "drawing editor closed with Escape",
+  );
+  await waitFor(
+    cdp,
+    sessionId,
+    `${EXCALIDRAW_BLOCKS}[0]?.querySelector('.excalidraw-preview svg[role="img"]') !== null`,
+    "drawing preview after editing",
+  );
+  const label = await evaluate(
+    cdp,
+    sessionId,
+    `${EXCALIDRAW_BLOCKS}[0].querySelector('.excalidraw-preview svg').getAttribute('aria-label')`,
+  );
+  assert(checks, "excalidraw-drawn-rectangle-committed", label === "Drawing with 1 element", label);
+
+  await evaluate(
+    cdp,
+    sessionId,
+    `${EXCALIDRAW_BLOCKS}[0].querySelector('button[aria-label="Save as .excalidraw file"]').click()`,
+  );
+  await waitFor(
+    cdp,
+    sessionId,
+    "window.__SKRIUW_WORKFLOW_E2E__.state().savedTextFiles.length === 1",
+    "saved .excalidraw file",
+  );
+  const saved = await evaluate(
+    cdp,
+    sessionId,
+    `(() => {
+      const [file] = window.__SKRIUW_WORKFLOW_E2E__.state().savedTextFiles;
+      const document = JSON.parse(file.contents);
+      return {
+        fileName: file.fileName,
+        type: document.type,
+        version: document.version,
+        elements: document.elements.map((element) => element.type),
+      };
+    })()`,
+  );
+  assert(
+    checks,
+    "excalidraw-saved-official-file",
+    saved.fileName === "Drawing note.excalidraw" &&
+      saved.type === "excalidraw" &&
+      saved.version === 2 &&
+      saved.elements.join() === "rectangle",
+    JSON.stringify(saved),
+  );
+
+  const importDirectory = await mkdtemp(join(tmpdir(), "skriuw-excalidraw-"));
+  const importPath = join(importDirectory, "Imported.excalidraw");
+  await writeFile(
+    importPath,
+    JSON.stringify({
+      type: "excalidraw",
+      version: 2,
+      source: "https://excalidraw.com",
+      elements: [
+        {
+          id: "imported-ellipse",
+          type: "ellipse",
+          x: 0,
+          y: 0,
+          width: 120,
+          height: 80,
+          angle: 0,
+          strokeColor: "#1e1e1e",
+          backgroundColor: "transparent",
+          fillStyle: "solid",
+          strokeWidth: 2,
+          strokeStyle: "solid",
+          roughness: 1,
+          opacity: 100,
+          groupIds: [],
+          frameId: null,
+          roundness: null,
+          seed: 1,
+          version: 1,
+          versionNonce: 1,
+          isDeleted: false,
+          boundElements: null,
+          updated: 1,
+          link: null,
+          locked: false,
+        },
+      ],
+      appState: { viewBackgroundColor: "#ffffff" },
+      files: {},
+    }),
+  );
+  await cdp.send("Page.setInterceptFileChooserDialog", { enabled: true }, sessionId);
+  const chooser = new Promise((resolveChooser) => {
+    cdp.on("Page.fileChooserOpened", (parameters, eventSession) => {
+      if (eventSession === sessionId) resolveChooser(parameters);
+    });
+  });
+  const trailing = await evaluate(
+    cdp,
+    sessionId,
+    `(() => {
+      const rect = document.querySelector('.ProseMirror[contenteditable="true"] > p:last-child').getBoundingClientRect();
+      return { x: rect.left + 8, y: rect.top + rect.height / 2 };
+    })()`,
+  );
+  for (const type of ["mousePressed", "mouseReleased"]) {
+    await cdp.send(
+      "Input.dispatchMouseEvent",
+      { type, x: trailing.x, y: trailing.y, button: "left", clickCount: 1 },
+      sessionId,
+    );
+  }
+  await typeText(cdp, sessionId, "/import");
+  await waitFor(
+    cdp,
+    sessionId,
+    "document.querySelector('.slash-menu [role=\"option\"][aria-selected=\"true\"]')?.textContent.includes('Import Excalidraw file')",
+    "import excalidraw slash command",
+  );
+  await dispatchKey(cdp, sessionId, "Enter", "Enter", 13);
+  const opened = await Promise.race([
+    chooser,
+    sleep(10_000).then(() => {
+      throw new Error("file chooser did not open");
+    }),
+  ]);
+  await cdp.send(
+    "DOM.setFileInputFiles",
+    { files: [importPath], backendNodeId: opened.backendNodeId },
+    sessionId,
+  );
+  await waitFor(
+    cdp,
+    sessionId,
+    `${EXCALIDRAW_BLOCKS}.length === 2 && ${EXCALIDRAW_BLOCKS}[1].querySelector('.excalidraw-preview svg[role="img"]') !== null`,
+    "imported drawing block",
+  );
+  assert(
+    checks,
+    "excalidraw-imported-file-renders",
+    (await evaluate(
+      cdp,
+      sessionId,
+      `${EXCALIDRAW_BLOCKS}[1].querySelector('.excalidraw-preview svg').getAttribute('aria-label')`,
+    )) === "Drawing with 1 element",
+    "imported preview label",
+  );
+  await cdp.send("Page.setInterceptFileChooserDialog", { enabled: false }, sessionId);
+  await rm(importDirectory, { recursive: true, force: true });
+}
+
 async function runWorkflow() {
   const profileDirectory = await mkdtemp(join(tmpdir(), "skriuw-c3-workflow-"));
   let chrome;
@@ -1157,6 +1404,24 @@ async function runWorkflow() {
       return {
         browser: browser.product,
         steps: ["mermaid-render"],
+        checks,
+        consoleErrors,
+        pageErrors,
+      };
+    }
+
+    if (excalidrawOnly) {
+      await checkExcalidrawDrawings(cdp, sessionId, checks);
+      assert(
+        checks,
+        "excalidraw-browser-errors-empty",
+        consoleErrors.length === 0 && pageErrors.length === 0,
+        JSON.stringify({ consoleErrors, pageErrors }),
+      );
+      cdp.close();
+      return {
+        browser: browser.product,
+        steps: ["excalidraw-drawings"],
         checks,
         consoleErrors,
         pageErrors,
@@ -2260,7 +2525,7 @@ try {
     schemaVersion: 1,
     verifiedAt: new Date().toISOString(),
     revision: git.stdout.trim(),
-    command: `node apps/workspace/e2e/run.mjs${personalOnly ? " --personal-only" : journalOnly ? " --journal-only" : providerImportOnly ? " --provider-import-only" : tasksOnly ? " --tasks-only" : mermaidOnly ? " --mermaid-only" : ""} --output ${output}`,
+    command: `node apps/workspace/e2e/run.mjs${personalOnly ? " --personal-only" : journalOnly ? " --journal-only" : providerImportOnly ? " --provider-import-only" : tasksOnly ? " --tasks-only" : mermaidOnly ? " --mermaid-only" : excalidrawOnly ? " --excalidraw-only" : ""} --output ${output}`,
     machine: {
       hostname: hostname(),
       platform: platform(),

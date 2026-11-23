@@ -12,6 +12,7 @@ import { serializeMermaidFlowchart } from "../diagrams/model";
 import { MATH_FENCE, mathDollarEscapes } from "../math/markdown";
 import { isHighlightColor, isTextAlignment } from "./attributes";
 import { DATABASE_FENCE_LANGUAGE } from "./database";
+import { EXCALIDRAW_FENCE_LANGUAGE } from "../excalidraw/scene";
 import { type MediaKind, isMediaKind, mediaTitleFromSource } from "./media";
 import { productSchema } from "./product-schema";
 import { isTaskId } from "./tasks";
@@ -225,6 +226,13 @@ const productNodeSerializers: MarkdownSerializer["nodes"] = {
   database_view(state, node) {
     state.write(`\`\`\`${DATABASE_FENCE_LANGUAGE}\n`);
     state.text(String(node.attrs.folder), false);
+    state.ensureNewLine();
+    state.write("```");
+    state.closeBlock(node);
+  },
+  excalidraw(state, node) {
+    state.write(`\`\`\`${EXCALIDRAW_FENCE_LANGUAGE}\n`);
+    state.text(String(node.attrs.scene), false);
     state.ensureNewLine();
     state.write("```");
     state.closeBlock(node);
