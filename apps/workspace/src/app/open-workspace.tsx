@@ -8,6 +8,7 @@ import { listenForHistory } from "@/app/history-startup";
 import { listenForSyncChanges } from "@/app/sync-startup";
 import { bindDesktopWindowClose, bindUiPersistence } from "@/app/ui-persistence";
 import { loadWorkspaceStore } from "@/app/workspace-bootstrap";
+import { bindAgentBridge } from "@/features/agents/bridge";
 import { currentSessionToken } from "@/features/auth/session";
 import {
   applyLaunchCapture,
@@ -103,6 +104,7 @@ export async function openWorkspace(root: Root): Promise<() => Promise<void>> {
   let sync: Awaited<ReturnType<typeof listenForSyncChanges>> | null = null;
   let unlistenSessionExpiry: UnlistenFn | null = null;
   let unlistenOpenedFiles: UnlistenFn | null = null;
+  let unbindAgentBridge: (() => void) | null = null;
   try {
     ({ sync, unlistenSessionExpiry, history } = await listenBeforeBootstrap());
     const store = await loadWorkspaceStore();
@@ -117,6 +119,7 @@ export async function openWorkspace(root: Root): Promise<() => Promise<void>> {
       liveHistory.dispose();
       unlistenSessionExpiry?.();
       unlistenOpenedFiles?.();
+      unbindAgentBridge?.();
       unbindWindowClosePersistence();
       unbindLockSession();
       unbindThemeColor();
@@ -142,6 +145,11 @@ export async function openWorkspace(root: Root): Promise<() => Promise<void>> {
     if (openedFiles) {
       unlistenOpenedFiles = await openedFiles;
     }
+    bindAgentBridge(store)
+      .then((unbind) => {
+        unbindAgentBridge = unbind;
+      })
+      .catch((error: unknown) => console.error("agent access could not attach", error));
     return async () => {
       window.removeEventListener("pagehide", teardownSession);
       await flushPendingWork();

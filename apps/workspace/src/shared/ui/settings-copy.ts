@@ -134,6 +134,9 @@ export const settingsCopy = {
     maximumRunAgeInDays: "Maximum run age in days",
     deleteEveryRun: "Delete every run",
   },
+  agents: {
+    letCodingAgentsReadAndOrganise: "Let coding agents read and organise this workspace over MCP.",
+  },
   shortcuts: {
     clickAShortcutThenPressA:
       "Click a shortcut, then press a new key combination. Enter or clicking elsewhere keeps the current one, Escape cancels.",

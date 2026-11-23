@@ -32,6 +32,7 @@ import { SettingsSearchResults } from "./search-results";
 import type { SettingsJump } from "./search-results";
 import type { RendererStore } from "@skriuw/renderer-core/store/types";
 import { AboutSection } from "@/features/settings-dialog/about/section";
+import { AgentsSection } from "@/features/settings-dialog/agents/section";
 import { AppearanceSection } from "@/features/settings-dialog/appearance/section";
 import { DataSection } from "@/features/settings-dialog/data/section";
 import { EditorSection } from "@/features/settings-dialog/editor/section";
@@ -285,6 +286,8 @@ export function SettingsDialog({
             )}
           </AiOptInGate>
         );
+      case "agents":
+        return <AgentsSection />;
       case "shortcuts":
         return <ShortcutsSection store={store} recordingCountRef={recordingCountRef} />;
       case "media":
